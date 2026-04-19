@@ -719,6 +719,12 @@ function makePortCard(portNum) {
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
         <input type="checkbox" class="pc-out-tls"> 出站啟用 TLS（落地機有 TLS 才勾）
       </label>
+      <div class="port-card-sub">客戶端連結</div>
+      <div class="input-group">
+        <input class="form-input pc-link" readonly placeholder="點「生成連結」產生此端口的匯入連結" style="font-size:11px">
+        <button class="btn sm primary" onclick="buildPortLink(this)">生成連結</button>
+        <button class="btn sm" onclick="copyPortLink(this)">複製</button>
+      </div>
     </div>
   `;
   div.querySelector('.pc-uuid').addEventListener('input', function() {
@@ -747,6 +753,42 @@ function regenPortShortID(btn) {
 
 function addPort(portNum) {
   document.getElementById('port-list').appendChild(makePortCard(portNum));
+}
+
+function buildPortLink(btn) {
+  const card = btn.closest('.port-card');
+  const serverIP = document.getElementById('vless-server-ip').value.trim();
+  if (!serverIP) { toast('請先在下方「v2rayN 連結」區塊填入公網 IP', 'err'); return; }
+
+  const proto = document.getElementById('cfg-in-proto').value;
+  const pubkey = document.getElementById('cfg-pubkey').value;
+  const sni = document.getElementById('cfg-sni').value || 'www.microsoft.com';
+  const port = +card.querySelector('.port-num').value;
+  const uuid = card.querySelector('.pc-uuid').value;
+  const shortid = card.querySelector('.pc-shortid').value;
+  const baseName = document.getElementById('vless-link-name').value || 'RelayBox';
+
+  if (!port) { toast('請先填入端口號', 'err'); return; }
+
+  let link = '';
+  const linkName = encodeURIComponent(baseName + '-' + port);
+  if (proto === 'vless-reality') {
+    if (!pubkey) { toast('請先按「本機生成」取得 REALITY 公鑰', 'err'); return; }
+    link = `vless://${uuid}@${serverIP}:${port}?security=reality&encryption=none&pbk=${encodeURIComponent(pubkey)}&fp=chrome&sid=${shortid}&sni=${sni}&flow=xtls-rprx-vision&type=tcp#${linkName}`;
+  } else if (proto === 'trojan') {
+    link = `trojan://${uuid}@${serverIP}:${port}?type=tcp#${linkName}`;
+  } else {
+    link = `vmess://${btoa(JSON.stringify({v:'2',ps:decodeURIComponent(linkName),add:serverIP,port:String(port),id:uuid,aid:0,net:'ws',path:'/relay',tls:''}))}`;
+  }
+  card.querySelector('.pc-link').value = link;
+  toast('連結已生成');
+}
+
+function copyPortLink(btn) {
+  const card = btn.closest('.port-card');
+  const val = card.querySelector('.pc-link').value;
+  if (!val) { buildPortLink(card.querySelector('.btn.primary')); return; }
+  copyText(val, '已複製連結');
 }
 
 function getPortsData() {
@@ -807,12 +849,17 @@ async function generateConfig() {
   if (currentRole === 'relay') {
     const proto   = document.getElementById('cfg-in-proto').value;
     const sni     = document.getElementById('cfg-sni').value || 'www.microsoft.com';
-    const privkey = document.getElementById('cfg-privkey').value || '（填入私鑰）';
+    const privkey = document.getElementById('cfg-privkey').value.trim();
     const portData = getPortsData();
 
     if (!portData.length) { toast('請填入至少一個有效的監聽端口', 'err'); return false; }
     const validPorts = portData.filter(d => d.exitIp && d.exitPort >= 1 && d.exitPort <= 65535);
     if (!validPorts.length) { toast('請為至少一個端口設定落地機 IP 和端口', 'err'); return false; }
+
+    if (proto === 'vless-reality' && !privkey) {
+      toast('請先在「REALITY 全域設定」點「本機生成」產生密鑰對', 'err');
+      return false;
+    }
 
     const makeInbound = (d) => {
       const tag = `in-${d.port}`;
