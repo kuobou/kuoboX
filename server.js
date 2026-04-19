@@ -19,6 +19,7 @@ const CONFIG = {
 
 // ── Session ───────────────────────────────────────────
 const sessions = new Map();
+const loginAttempts = new Map(); // ip -> { count, resetAt }
 
 function genToken() { return crypto.randomBytes(32).toString('hex'); }
 
@@ -34,11 +35,23 @@ setInterval(() => {
   for (const [k, v] of sessions) {
     if (now - v > 30 * 60 * 1000) sessions.delete(k);
   }
+  for (const [k, v] of loginAttempts) {
+    if (now > v.resetAt) loginAttempts.delete(k);
+  }
 }, 5 * 60 * 1000);
 
 // ── Auth ──────────────────────────────────────────────
 app.post('/api/login', (req, res) => {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const att = loginAttempts.get(ip) || { count: 0, resetAt: now + 60 * 1000 };
+  if (now > att.resetAt) { att.count = 0; att.resetAt = now + 60 * 1000; }
+  att.count++;
+  loginAttempts.set(ip, att);
+  if (att.count > 10) return res.status(429).json({ error: '嘗試次數過多，請 1 分鐘後再試' });
+
   if (req.body.password !== CONFIG.password) return res.status(403).json({ error: '密碼錯誤' });
+  att.count = 0;
   const token = genToken();
   sessions.set(token, Date.now());
   res.json({ token });
@@ -231,7 +244,9 @@ app.post('/api/saveenv', authMiddleware, (req, res) => {
   } catch (_) {}
   if (PANEL_PASSWORD) { existing.PANEL_PASSWORD = PANEL_PASSWORD; CONFIG.password = PANEL_PASSWORD; }
   try {
-    fs.writeFileSync(envPath, Object.entries(existing).map(([k, v]) => `${k}=${v}`).join('\n') + '\n');
+    const tmpPath = envPath + '.tmp';
+    fs.writeFileSync(tmpPath, Object.entries(existing).map(([k, v]) => `${k}=${v}`).join('\n') + '\n');
+    fs.renameSync(tmpPath, envPath);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
