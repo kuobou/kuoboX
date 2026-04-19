@@ -98,12 +98,6 @@ else
   log "sing-box 已安裝 ($(sing-box version | head -1))"
 fi
 
-# ── 安裝 vnstat ──────────────────────────────
-info "安裝 vnstat..."
-dnf install -y vnstat 2>/dev/null || yum install -y vnstat 2>/dev/null || apt-get install -y vnstat 2>/dev/null || warn "vnstat 安裝失敗，流量統計將使用備用方案"
-systemctl enable vnstat 2>/dev/null || true
-systemctl start vnstat 2>/dev/null || true
-log "vnstat 完成"
 
 # ── 安裝 npm 依賴 ────────────────────────────
 info "安裝 npm 依賴..."
