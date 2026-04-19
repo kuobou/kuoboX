@@ -61,7 +61,7 @@ info "下載 RelayBox 到 $INSTALL_DIR ..."
 curl -fsSL https://github.com/kuobou/relaybox/archive/refs/heads/main.zip -o /tmp/relaybox.zip
 unzip -q -o /tmp/relaybox.zip -d /tmp/
 mkdir -p "$INSTALL_DIR"
-cp -r /tmp/relaybox-main/. "$INSTALL_DIR/"
+cp -rf /tmp/relaybox-main/. "$INSTALL_DIR/"
 rm -rf /tmp/relaybox.zip /tmp/relaybox-main
 cd "$INSTALL_DIR"
 log "下載完成"
