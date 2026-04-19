@@ -242,11 +242,6 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
           <div class="stat-card-sub" id="stat-rx-sub">累計收發</div>
         </div>
         <div class="stat-card">
-          <div class="stat-card-label">本月發送</div>
-          <div class="stat-card-val" id="stat-tx">--</div>
-          <div class="stat-card-sub" id="stat-tx-sub">流量</div>
-        </div>
-        <div class="stat-card">
           <div class="stat-card-label">公網 IP</div>
           <div class="stat-card-val" style="font-size:13px;padding-top:6px" id="stat-pubip">--</div>
           <div class="stat-card-sub">本機</div>
@@ -606,14 +601,10 @@ async function refreshDashboard() {
   if (traffic && !traffic.error) {
     if (traffic.source === 'vnstat') {
       document.getElementById('stat-rx').textContent = fmtBytes((traffic.total_rx||0) + (traffic.total_tx||0));
-      document.getElementById('stat-tx').textContent = fmtBytes(traffic.month_tx);
       document.getElementById('stat-rx-sub').textContent = '↓ ' + fmtBytes(traffic.total_rx) + '  ↑ ' + fmtBytes(traffic.total_tx);
-      document.getElementById('stat-tx-sub').textContent = '本月 / 累計 ' + fmtBytes(traffic.total_tx);
     } else {
       document.getElementById('stat-rx').textContent = fmtBytes((traffic.rx||0) + (traffic.tx||0));
-      document.getElementById('stat-tx').textContent = fmtBytes(traffic.tx);
       document.getElementById('stat-rx-sub').textContent = '開機累計收發';
-      document.getElementById('stat-tx-sub').textContent = '開機累計';
     }
   }
 }
