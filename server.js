@@ -112,7 +112,7 @@ app.get('/api/traffic', authMiddleware, async (req, res) => {
 
 // ── 取得公網 IP ───────────────────────────────────────
 app.get('/api/publicip', authMiddleware, async (req, res) => {
-  const r = await run('curl -s --max-time 5 ifconfig.me');
+  const r = await run('curl -4 -s --max-time 5 ifconfig.me 2>/dev/null || curl -s --max-time 5 ifconfig.me');
   res.json({ ip: r.stdout || '' });
 });
 
