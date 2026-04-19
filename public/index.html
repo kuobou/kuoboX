@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>中轉管理面板</title>
+<title>kuoboX</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #141c2e;
-  --bg2: #1c2840;
-  --bg3: #243354;
-  --border: #2e4268;
-  --border2: #3a5280;
-  --text: #eef2ff;
-  --muted: #8aaad4;
+  --bg: #0d1117;
+  --bg2: #161b27;
+  --bg3: #1e2639;
+  --border: #252e42;
+  --border2: #2f3d5a;
+  --text: #e8eeff;
+  --muted: #7a9cc8;
   --accent: #60a5fa;
   --accent2: #3b82f6;
   --green: #4ade80;
@@ -22,28 +22,31 @@
   --amber: #fcd34d;
   --mono: 'JetBrains Mono', monospace;
   --sans: 'Noto Sans TC', sans-serif;
+  --grad: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+  --grad-glow: rgba(96,165,250,0.18);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
 
-#login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; }
-.login-card { width:340px; background:var(--bg2); border:1px solid var(--border2); border-radius:16px; padding:40px 32px; }
-.login-logo { display:flex; align-items:center; gap:10px; margin-bottom:32px; }
-.login-logo-icon { width:36px; height:36px; background:var(--accent); border-radius:9px; display:flex; align-items:center; justify-content:center; }
-.login-title { font-size:16px; font-weight:500; }
-.login-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+#login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at 50% 0%, #1a2550 0%, var(--bg) 65%); }
+.login-card { width:360px; background:var(--bg2); border:1px solid rgba(96,165,250,.2); border-radius:20px; padding:44px 36px; box-shadow:0 0 60px rgba(96,165,250,.08), 0 24px 48px rgba(0,0,0,.4); }
+.login-logo { display:flex; flex-direction:column; align-items:center; gap:14px; margin-bottom:36px; }
+.login-logo-icon { width:56px; height:56px; background:var(--grad); border-radius:16px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 28px rgba(96,165,250,.35), 0 8px 16px rgba(0,0,0,.3); }
+.login-title { font-size:22px; font-weight:700; letter-spacing:-.01em; background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.login-sub { font-size:11px; color:var(--muted); margin-top:2px; letter-spacing:.12em; text-transform:uppercase; text-align:center; }
 .login-label { font-size:11px; color:var(--muted); font-weight:500; letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; }
-.login-input { width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:14px; padding:10px 14px; outline:none; transition:border-color .2s; margin-bottom:20px; }
-.login-input:focus { border-color:var(--accent); }
-.login-btn { width:100%; background:var(--accent); color:#fff; border:none; border-radius:8px; font-family:var(--sans); font-size:14px; font-weight:500; padding:11px; cursor:pointer; transition:background .15s; }
-.login-btn:hover { background:var(--accent2); }
+.login-input { width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:9px; color:var(--text); font-family:var(--mono); font-size:14px; padding:11px 14px; outline:none; transition:border-color .2s,box-shadow .2s; margin-bottom:20px; }
+.login-input:focus { border-color:rgba(96,165,250,.6); box-shadow:0 0 0 3px rgba(96,165,250,.1); }
+.login-btn { width:100%; background:var(--grad); color:#fff; border:none; border-radius:9px; font-family:var(--sans); font-size:14px; font-weight:600; padding:12px; cursor:pointer; transition:opacity .15s,transform .1s; letter-spacing:.02em; }
+.login-btn:hover { opacity:.88; }
+.login-btn:active { transform:scale(.98); }
 .login-err { font-size:12px; color:var(--red); margin-top:12px; text-align:center; min-height:18px; }
 
 #app { display:none; min-height:100vh; flex-direction:column; }
-.topnav { display:flex; align-items:center; background:var(--bg2); border-bottom:1px solid var(--border); padding:0 20px; height:52px; flex-shrink:0; }
+.topnav { display:flex; align-items:center; background:rgba(22,27,39,.95); backdrop-filter:blur(12px); border-bottom:1px solid rgba(96,165,250,.12); padding:0 20px; height:52px; flex-shrink:0; }
 .nav-logo { display:flex; align-items:center; gap:9px; margin-right:28px; }
-.nav-logo-icon { width:28px; height:28px; background:var(--accent); border-radius:7px; display:flex; align-items:center; justify-content:center; }
-.nav-logo-text { font-size:14px; font-weight:500; }
+.nav-logo-icon { width:28px; height:28px; background:var(--grad); border-radius:8px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 12px rgba(96,165,250,.3); }
+.nav-logo-text { font-size:15px; font-weight:700; letter-spacing:-.01em; background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
 .nav-tabs { display:flex; gap:2px; flex:1; }
 .nav-tab { font-size:13px; padding:6px 14px; border-radius:6px; cursor:pointer; color:var(--muted); transition:color .15s,background .15s; white-space:nowrap; }
 .nav-tab:hover { color:var(--text); background:var(--bg3); }
@@ -173,12 +176,20 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   <div class="login-card">
     <div class="login-logo">
       <div class="login-logo-icon">
-        <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="#fff" stroke-width="1.5"/><path d="M10 6v5l3 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" width="30" height="30">
+          <circle cx="5" cy="5" r="2" fill="#fff" opacity=".9"/>
+          <circle cx="19" cy="5" r="2" fill="#fff" opacity=".9"/>
+          <circle cx="5" cy="19" r="2" fill="#fff" opacity=".9"/>
+          <circle cx="19" cy="19" r="2" fill="#fff" opacity=".9"/>
+          <circle cx="12" cy="12" r="2.5" fill="#fff"/>
+          <line x1="7" y1="5" x2="10" y2="10.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+          <line x1="17" y1="5" x2="14" y2="10.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+          <line x1="7" y1="19" x2="10" y2="13.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+          <line x1="17" y1="19" x2="14" y2="13.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+        </svg>
       </div>
-      <div>
-        <div class="login-title">中轉管理面板</div>
-        <div class="login-sub">sing-box 流量轉發管理</div>
-      </div>
+      <div class="login-title">kuoboX</div>
+      <div class="login-sub">Relay · Monitor · Control</div>
     </div>
     <div class="login-label">管理密碼</div>
     <input class="login-input" type="password" id="pw-input" placeholder="輸入密碼" autocomplete="current-password">
@@ -191,9 +202,19 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   <nav class="topnav">
     <div class="nav-logo">
       <div class="nav-logo-icon">
-        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#fff" stroke-width="1.3"/><path d="M8 5v3l2 2" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+          <circle cx="5" cy="5" r="2" fill="#fff" opacity=".9"/>
+          <circle cx="19" cy="5" r="2" fill="#fff" opacity=".9"/>
+          <circle cx="5" cy="19" r="2" fill="#fff" opacity=".9"/>
+          <circle cx="19" cy="19" r="2" fill="#fff" opacity=".9"/>
+          <circle cx="12" cy="12" r="2.5" fill="#fff"/>
+          <line x1="7" y1="5" x2="10" y2="10.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+          <line x1="17" y1="5" x2="14" y2="10.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+          <line x1="7" y1="19" x2="10" y2="13.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+          <line x1="17" y1="19" x2="14" y2="13.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+        </svg>
       </div>
-      <div class="nav-logo-text">中轉面板</div>
+      <div class="nav-logo-text">kuoboX</div>
     </div>
     <div class="nav-tabs">
       <div class="nav-tab active" onclick="gotoTab('dashboard')">概覽</div>
