@@ -1,0 +1,13 @@
+{
+  "name": "relay-panel",
+  "version": "1.0.0",
+  "description": "sing-box 中轉管理面板",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

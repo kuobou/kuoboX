@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>中轉管理面板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #141c2e;
+  --bg2: #1c2840;
+  --bg3: #243354;
+  --border: #2e4268;
+  --border2: #3a5280;
+  --text: #eef2ff;
+  --muted: #8aaad4;
+  --accent: #60a5fa;
+  --accent2: #3b82f6;
+  --green: #4ade80;
+  --red: #f87171;
+  --amber: #fcd34d;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Noto Sans TC', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
+
+#login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; }
+.login-card { width:340px; background:var(--bg2); border:1px solid var(--border2); border-radius:16px; padding:40px 32px; }
+.login-logo { display:flex; align-items:center; gap:10px; margin-bottom:32px; }
+.login-logo-icon { width:36px; height:36px; background:var(--accent); border-radius:9px; display:flex; align-items:center; justify-content:center; }
+.login-title { font-size:16px; font-weight:500; }
+.login-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+.login-label { font-size:11px; color:var(--muted); font-weight:500; letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; }
+.login-input { width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:14px; padding:10px 14px; outline:none; transition:border-color .2s; margin-bottom:20px; }
+.login-input:focus { border-color:var(--accent); }
+.login-btn { width:100%; background:var(--accent); color:#fff; border:none; border-radius:8px; font-family:var(--sans); font-size:14px; font-weight:500; padding:11px; cursor:pointer; transition:background .15s; }
+.login-btn:hover { background:var(--accent2); }
+.login-err { font-size:12px; color:var(--red); margin-top:12px; text-align:center; min-height:18px; }
+
+#app { display:none; min-height:100vh; flex-direction:column; }
+.topnav { display:flex; align-items:center; background:var(--bg2); border-bottom:1px solid var(--border); padding:0 20px; height:52px; flex-shrink:0; }
+.nav-logo { display:flex; align-items:center; gap:9px; margin-right:28px; }
+.nav-logo-icon { width:28px; height:28px; background:var(--accent); border-radius:7px; display:flex; align-items:center; justify-content:center; }
+.nav-logo-text { font-size:14px; font-weight:500; }
+.nav-tabs { display:flex; gap:2px; flex:1; }
+.nav-tab { font-size:13px; padding:6px 14px; border-radius:6px; cursor:pointer; color:var(--muted); transition:color .15s,background .15s; white-space:nowrap; }
+.nav-tab:hover { color:var(--text); background:var(--bg3); }
+.nav-tab.active { color:var(--text); background:var(--bg3); font-weight:500; }
+.nav-right { display:flex; align-items:center; gap:10px; }
+.status-badge { display:flex; align-items:center; gap:6px; font-size:12px; padding:4px 10px; border-radius:99px; border:1px solid var(--border2); }
+.dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.dot.green { background:var(--green); box-shadow:0 0 8px var(--green); }
+.dot.red { background:var(--red); box-shadow:0 0 6px var(--red); }
+.dot.muted { background:var(--muted); }
+.btn-logout { font-size:12px; padding:5px 12px; background:transparent; color:var(--muted); border:1px solid var(--border2); border-radius:6px; cursor:pointer; transition:color .15s,border-color .15s; }
+.btn-logout:hover { color:var(--text); border-color:var(--border); }
+
+.main { flex:1; padding:20px; max-width:900px; margin:0 auto; width:100%; }
+.section { display:none; }
+.section.active { display:block; }
+
+/* Cards */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+.stat-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+.stat-card-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+.stat-card-val { font-size:22px; font-weight:500; font-family:var(--mono); }
+.stat-card-sub { font-size:11px; color:var(--muted); margin-top:3px; }
+
+.control-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px; }
+.control-card-header { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.service-icon { width:40px; height:40px; border-radius:10px; background:var(--bg3); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.service-name { font-size:15px; font-weight:500; }
+.service-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+.service-badge { margin-left:auto; font-size:12px; font-weight:500; padding:4px 12px; border-radius:99px; }
+.service-badge.running { background:rgba(74,222,128,.15); color:var(--green); }
+.service-badge.stopped { background:rgba(248,113,113,.15); color:var(--red); }
+.service-badge.loading { background:var(--bg3); color:var(--muted); }
+.control-actions { display:flex; gap:8px; }
+
+/* Buttons */
+.btn { font-size:13px; padding:7px 14px; border-radius:7px; cursor:pointer; border:1px solid var(--border2); background:transparent; color:var(--text); transition:background .15s,border-color .15s; font-family:var(--sans); }
+.btn:hover { background:var(--bg3); }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+.btn.primary:hover { background:var(--accent2); border-color:var(--accent2); }
+.btn.danger { border-color:rgba(248,113,113,.4); color:var(--red); }
+.btn.danger:hover { background:rgba(248,113,113,.1); }
+.btn.sm { font-size:12px; padding:5px 11px; }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+
+/* Forms */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+.form-group { display:flex; flex-direction:column; gap:5px; }
+.form-label { font-size:11px; color:var(--muted); font-weight:500; text-transform:uppercase; letter-spacing:.05em; }
+.form-input,.form-select { background:var(--bg3); border:1px solid var(--border2); border-radius:7px; color:var(--text); font-family:var(--mono); font-size:13px; padding:8px 11px; outline:none; transition:border-color .2s; }
+.form-input:focus,.form-select:focus { border-color:var(--accent); }
+.form-input::placeholder { color:var(--muted); opacity:.7; }
+.form-select { cursor:pointer; appearance:none; }
+.input-group { display:flex; gap:6px; }
+.input-group .form-input { flex:1; }
+
+.editor-area { background:var(--bg3); border:1px solid var(--border2); border-radius:10px; padding:16px; font-family:var(--mono); font-size:12px; line-height:1.7; color:var(--text); width:100%; min-height:300px; resize:vertical; outline:none; transition:border-color .2s; }
+.editor-area:focus { border-color:var(--accent); }
+
+.section-title { font-size:12px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:20px 0 10px; }
+.section-title:first-child { margin-top:0; }
+.notice { font-size:12px; padding:10px 14px; border-radius:7px; margin-bottom:14px; background:rgba(96,165,250,.1); color:#93c5fd; border:1px solid rgba(96,165,250,.25); }
+.actions-bar { display:flex; gap:8px; margin-top:14px; align-items:center; }
+.actions-bar .spacer { flex:1; }
+.divider { border:none; border-top:1px solid var(--border); margin:16px 0; }
+
+/* Config tabs */
+.config-tabs { display:flex; gap:6px; margin-bottom:14px; }
+.config-tab { font-size:12px; padding:5px 14px; border-radius:6px; background:var(--bg3); border:1px solid var(--border); color:var(--muted); cursor:pointer; transition:all .15s; }
+.config-tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+/* Logs */
+.log-toolbar { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+.log-box { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:14px; font-family:var(--mono); font-size:12px; line-height:1.8; min-height:400px; max-height:500px; overflow-y:auto; }
+.log-line { display:flex; gap:12px; padding:2px 0; }
+.log-time { color:var(--muted); flex-shrink:0; width:130px; }
+.log-msg { flex:1; word-break:break-all; }
+.log-line.err .log-msg { color:var(--red); }
+.log-line.warn .log-msg { color:var(--amber); }
+.log-line.info .log-msg { color:#93c5fd; }
+
+/* Rules */
+.rules-list { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+.rule-row { display:flex; align-items:center; gap:12px; background:var(--bg2); border:1px solid var(--border); border-radius:9px; padding:11px 16px; }
+.rule-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.rule-name { font-weight:500; font-size:13px; min-width:120px; }
+.rule-target { font-family:var(--mono); font-size:11px; color:var(--muted); flex:1; }
+.rule-action { font-size:11px; padding:3px 10px; border-radius:99px; background:var(--bg3); color:var(--muted); border:1px solid var(--border); }
+.rule-action.relay { background:rgba(96,165,250,.12); color:#93c5fd; border-color:rgba(96,165,250,.25); }
+.rule-action.direct { background:rgba(74,222,128,.1); color:var(--green); border-color:rgba(74,222,128,.25); }
+.rule-action.block { background:rgba(248,113,113,.1); color:var(--red); border-color:rgba(248,113,113,.25); }
+
+/* Port list */
+.port-list { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+.port-row { display:flex; align-items:center; gap:8px; }
+.port-row .form-select { width:200px; flex-shrink:0; }
+.port-row .form-input { width:120px; flex-shrink:0; }
+
+/* Port cards */
+.port-card { background:var(--bg2); border:1px solid var(--border); border-radius:9px; overflow:hidden; }
+.port-card-head { display:flex; align-items:center; gap:8px; padding:9px 12px; }
+.port-card-body { padding:4px 14px 14px; border-top:1px solid var(--border); }
+.port-card-sub { font-size:11px; color:var(--muted); font-weight:500; text-transform:uppercase; letter-spacing:.05em; margin:10px 0 8px; padding-top:10px; border-top:1px solid var(--border); }
+
+/* Role tabs */
+.role-tabs { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+.role-tab { background:var(--bg2); border:2px solid var(--border); border-radius:12px; padding:14px 18px; cursor:pointer; transition:all .15s; }
+.role-tab:hover { border-color:var(--border2); }
+.role-tab.active { border-color:var(--accent); background:rgba(96,165,250,.08); }
+.role-tab-title { font-size:14px; font-weight:500; margin-bottom:3px; }
+.role-tab.active .role-tab-title { color:var(--accent); }
+.role-tab-sub { font-size:12px; color:var(--muted); }
+
+/* Toast */
+#toast { position:fixed; bottom:20px; right:20px; background:var(--bg3); border:1px solid var(--border2); border-radius:9px; padding:10px 16px; font-size:13px; z-index:9999; transform:translateY(60px); opacity:0; transition:all .25s; pointer-events:none; }
+#toast.show { transform:translateY(0); opacity:1; }
+#toast.ok { border-color:var(--green); color:var(--green); }
+#toast.err { border-color:var(--red); color:var(--red); }
+
+.spin { display:inline-block; width:14px; height:14px; border:2px solid var(--border2); border-top-color:var(--accent); border-radius:50%; animation:spin .6s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">
+        <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="#fff" stroke-width="1.5"/><path d="M10 6v5l3 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </div>
+      <div>
+        <div class="login-title">中轉管理面板</div>
+        <div class="login-sub">sing-box 流量轉發管理</div>
+      </div>
+    </div>
+    <div class="login-label">管理密碼</div>
+    <input class="login-input" type="password" id="pw-input" placeholder="輸入密碼" autocomplete="current-password">
+    <button class="login-btn" onclick="doLogin()">登入</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none;flex-direction:column">
+  <nav class="topnav">
+    <div class="nav-logo">
+      <div class="nav-logo-icon">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#fff" stroke-width="1.3"/><path d="M8 5v3l2 2" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </div>
+      <div class="nav-logo-text">中轉面板</div>
+    </div>
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="gotoTab('dashboard')">概覽</div>
+      <div class="nav-tab" onclick="gotoTab('config')">設定生成</div>
+      <div class="nav-tab" onclick="gotoTab('editor')">設定編輯</div>
+      <div class="nav-tab" onclick="gotoTab('logs')">日誌</div>
+      <div class="nav-tab" onclick="gotoTab('rules')">路由規則</div>
+    </div>
+    <div class="nav-right">
+      <div class="status-badge">
+        <div class="dot muted" id="global-dot"></div>
+        <span id="global-status">連線中...</span>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">登出</button>
+    </div>
+  </nav>
+
+  <div class="main">
+
+    <!-- Dashboard -->
+    <div class="section active" id="section-dashboard">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-card-label">CPU 使用率</div>
+          <div class="stat-card-val" id="stat-cpu">--</div>
+          <div class="stat-card-sub">本機</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">記憶體</div>
+          <div class="stat-card-val" id="stat-mem">--</div>
+          <div class="stat-card-sub">使用率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">磁碟</div>
+          <div class="stat-card-val" id="stat-disk">--</div>
+          <div class="stat-card-sub">/ 使用率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">運行時間</div>
+          <div class="stat-card-val" style="font-size:14px;padding-top:4px" id="stat-uptime">--</div>
+          <div class="stat-card-sub">本機</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">本月接收</div>
+          <div class="stat-card-val" id="stat-rx">--</div>
+          <div class="stat-card-sub" id="stat-rx-sub">流量</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">本月發送</div>
+          <div class="stat-card-val" id="stat-tx">--</div>
+          <div class="stat-card-sub" id="stat-tx-sub">流量</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">公網 IP</div>
+          <div class="stat-card-val" style="font-size:13px;padding-top:6px" id="stat-pubip">--</div>
+          <div class="stat-card-sub">本機</div>
+        </div>
+      </div>
+
+      <div class="control-card">
+        <div class="control-card-header">
+          <div class="service-icon">
+            <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="10" rx="2" stroke="#60a5fa" stroke-width="1.4"/><path d="M7 6V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke="#60a5fa" stroke-width="1.4"/><circle cx="10" cy="11" r="2" stroke="#60a5fa" stroke-width="1.2"/></svg>
+          </div>
+          <div>
+            <div class="service-name">sing-box</div>
+            <div class="service-sub">流量轉發服務</div>
+          </div>
+          <div class="service-badge loading" id="service-badge">讀取中</div>
+        </div>
+        <div id="service-reason" style="display:none;font-size:12px;color:var(--red);background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:7px;padding:8px 12px;margin-bottom:12px;font-family:var(--mono);word-break:break-all"></div>
+        <div class="control-actions">
+          <button class="btn primary" onclick="restartService()">重啟服務</button>
+          <button class="btn" onclick="gotoTab('logs')">查看日誌</button>
+          <button class="btn" onclick="gotoTab('editor')">編輯設定</button>
+          <button class="btn danger" onclick="stopService()">停止服務</button>
+        </div>
+      </div>
+
+      <div class="control-card">
+        <div class="control-card-header">
+          <div class="service-icon">
+            <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="#4ade80" stroke-width="1.4"/><path d="M6 10h8M10 6l4 4-4 4" stroke="#4ade80" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div>
+            <div class="service-name">連線測試</div>
+            <div class="service-sub">Ping 落地機確認連通性</div>
+          </div>
+          <div id="ping-badge" class="service-badge loading" style="display:none"></div>
+        </div>
+        <div class="form-grid" style="margin-bottom:10px">
+          <div class="form-group">
+            <div class="form-label">落地機 IP</div>
+            <input class="form-input" id="ping-ip" placeholder="203.69.x.x">
+          </div>
+          <div class="form-group">
+            <div class="form-label">落地機端口</div>
+            <input class="form-input" id="ping-port" placeholder="8443" type="number">
+          </div>
+        </div>
+        <div class="actions-bar" style="margin-top:0;margin-bottom:10px">
+          <button class="btn primary" onclick="doPing()" id="ping-btn">測試連線</button>
+        </div>
+        <div id="ping-result" style="display:none">
+          <div style="display:flex;gap:10px;margin-bottom:8px">
+            <div id="ping-icmp" style="flex:1;background:var(--bg3);border-radius:7px;padding:10px 12px;font-size:12px">
+              <div style="color:var(--muted);margin-bottom:4px">ICMP Ping</div>
+              <div id="ping-icmp-val" style="font-family:var(--mono);font-size:15px;font-weight:500">--</div>
+            </div>
+            <div id="ping-tcp" style="flex:1;background:var(--bg3);border-radius:7px;padding:10px 12px;font-size:12px">
+              <div style="color:var(--muted);margin-bottom:4px">TCP 端口連通</div>
+              <div id="ping-tcp-val" style="font-family:var(--mono);font-size:15px;font-weight:500">--</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config Generator -->
+    <div class="section" id="section-config">
+
+      <!-- 角色選擇 -->
+      <div class="role-tabs">
+        <div class="role-tab active" id="role-relay" onclick="switchRole('relay')">
+          <div class="role-tab-title">中轉機</div>
+          <div class="role-tab-sub">接收客戶端，轉發到落地機</div>
+        </div>
+        <div class="role-tab" id="role-exit" onclick="switchRole('exit')">
+          <div class="role-tab-title">落地機</div>
+          <div class="role-tab-sub">接收中轉機，直接出口</div>
+        </div>
+      </div>
+
+      <!-- 中轉機設定 -->
+      <div id="block-relay">
+        <div class="section-title">客戶端入站（客戶端連線到此機器）</div>
+        <div class="form-group" style="margin-bottom:10px">
+          <div class="form-label">入站協議</div>
+          <select class="form-select" id="cfg-in-proto" onchange="onProtoChange()" style="max-width:280px">
+            <option value="vless-reality">VLESS + REALITY（推薦）</option>
+            <option value="trojan">Trojan TLS</option>
+            <option value="vmess-ws">VMess + WebSocket</option>
+          </select>
+        </div>
+        <div class="form-label" style="margin-bottom:6px">監聽端口（每個端口可獨立設定 UUID 與落地機）</div>
+        <div class="port-list" id="port-list"></div>
+        <button class="btn sm" onclick="addPort()" style="margin-bottom:14px">＋ 新增端口</button>
+
+        <div id="reality-block">
+          <hr class="divider">
+          <div class="section-title">REALITY 全域設定（密鑰對所有端口共用）</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <div class="form-label">偽裝域名 (SNI)</div>
+              <input class="form-input" id="cfg-sni" value="www.microsoft.com">
+            </div>
+            <div class="form-group">
+              <div class="form-label">REALITY 私鑰</div>
+              <div class="input-group">
+                <input class="form-input" id="cfg-privkey" placeholder="貼入 Private Key">
+                <button class="btn sm" onclick="genRealityKeypair()">本機生成</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <div class="form-label">Public Key（給客戶端用）</div>
+            <input class="form-input" id="cfg-pubkey" placeholder="生成後自動填入" readonly>
+          </div>
+        </div>
+      </div>
+
+      <!-- 落地機設定 -->
+      <div id="block-exit" style="display:none">
+        <div class="section-title">入站設定（接收中轉機連線）</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <div class="form-label">協議</div>
+            <select class="form-select" id="cfg-exit-proto">
+              <option value="vless">VLESS</option>
+              <option value="trojan">Trojan TLS</option>
+              <option value="shadowsocks">Shadowsocks</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <div class="form-label">監聽端口</div>
+            <input class="form-input" id="cfg-exit-listen-port" placeholder="例如 8443" type="number">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <div class="form-label">UUID（已自動生成，複製給中轉機使用）</div>
+          <div class="input-group">
+            <input class="form-input" id="cfg-exit-gen-uuid">
+            <button class="btn sm" onclick="genExitUUID()">重新生成</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:8px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="cfg-exit-tls"> 入站啟用 TLS（需要 /etc/ssl/cert.pem 憑證）
+          </label>
+        </div>
+        <div class="notice" style="margin-top:8px">把上面的 UUID 填到中轉機的「落地機 UUID」欄位。</div>
+        <hr class="divider">
+        <div class="section-title">匯出連結（給中轉機參考）</div>
+        <div class="form-group" style="margin-bottom:8px">
+          <div class="form-label">這台機器的公網 IP</div>
+          <div class="input-group">
+            <input class="form-input" id="exit-server-ip" placeholder="自動偵測或手動輸入">
+            <button class="btn sm" onclick="detectExitIP()">偵測</button>
+          </div>
+        </div>
+        <div class="input-group" style="margin-bottom:4px">
+          <input class="form-input" id="exit-vless-link" readonly placeholder="填入 IP 後點擊生成" style="font-size:11px">
+          <button class="btn sm primary" onclick="buildExitLink()">生成連結</button>
+          <button class="btn sm" onclick="copyText(document.getElementById('exit-vless-link').value)">複製</button>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <textarea class="editor-area" id="cfg-output" rows="14" readonly placeholder="點擊「套用到本機」生成並套用設定"></textarea>
+      <div class="actions-bar">
+        <button class="btn primary" onclick="applyConfig()">套用到本機並重啟</button>
+        <button class="btn" onclick="generateConfig()">只生成不套用</button>
+      </div>
+
+      <hr class="divider">
+      <div id="vless-link-block">
+      <div class="section-title">v2rayN / Clash 匯入連結</div>
+      <div class="form-grid" style="margin-bottom:10px">
+        <div class="form-group">
+          <div class="form-label">這台機器的公網 IP</div>
+          <div class="input-group">
+            <input class="form-input" id="vless-server-ip" placeholder="自動偵測或手動輸入">
+            <button class="btn sm" onclick="detectIP()">偵測</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="form-label">連結名稱</div>
+          <input class="form-input" id="vless-link-name" value="RelayBox">
+        </div>
+      </div>
+      <div class="input-group" style="margin-bottom:8px">
+        <input class="form-input" id="vless-link-input" readonly placeholder="填入公網 IP 後點擊生成" style="font-size:11px">
+        <button class="btn sm primary" onclick="buildVlessLink()">生成連結</button>
+        <button class="btn sm" onclick="copyVlessLink()">複製</button>
+      </div>
+      </div><!-- end vless-link-block -->
+    </div>
+
+    <!-- Config Editor -->
+    <div class="section" id="section-editor">
+      <div class="notice">直接編輯本機 sing-box 設定檔（/etc/sing-box/config.json）。</div>
+      <textarea class="editor-area" id="raw-config" rows="24" placeholder="讀取中..."></textarea>
+      <div class="actions-bar">
+        <button class="btn primary" onclick="saveConfig()">儲存並重啟</button>
+        <button class="btn" onclick="loadConfig()">重新讀取</button>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="section" id="section-logs">
+      <div class="log-toolbar">
+        <select class="form-select" id="log-lines" style="width:110px">
+          <option value="50">50 行</option>
+          <option value="100">100 行</option>
+          <option value="200">200 行</option>
+        </select>
+        <button class="btn primary sm" onclick="fetchLogs()">讀取日誌</button>
+        <button class="btn sm" onclick="clearLogDisplay()">清除</button>
+        <div style="flex:1"></div>
+        <div class="spin" id="log-spin" style="display:none"></div>
+      </div>
+      <div class="log-box" id="log-box">
+        <div class="log-line info"><span class="log-time">--:--:--</span><span class="log-msg">點擊「讀取日誌」載入日誌</span></div>
+      </div>
+    </div>
+
+    <!-- Rules -->
+    <div class="section" id="section-rules">
+      <div class="notice">建議的路由規則，複製後貼到 sing-box 設定的 route.rules 區塊。</div>
+      <div class="rules-list" id="rules-list"></div>
+      <div class="section-title">完整路由設定 (JSON)</div>
+      <textarea class="editor-area" rows="18" id="rules-json" readonly></textarea>
+      <div class="actions-bar">
+        <button class="btn" onclick="copyRules()">複製路由設定</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+var TOKEN = localStorage.getItem('relay_token') || '';
+var currentRole = 'relay';
+
+function copyText(text, msg) {
+  msg = msg || '已複製';
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text).then(() => toast(msg));
+  }
+  const el = document.createElement('textarea');
+  el.value = text; el.style.position = 'fixed'; el.style.opacity = '0';
+  document.body.appendChild(el); el.select();
+  document.execCommand('copy');
+  document.body.removeChild(el);
+  toast(msg);
+}
+
+function initDefaults() { addPort(); genExitUUID(); }
+
+function switchRole(role) {
+  currentRole = role;
+  document.getElementById('role-relay').classList.toggle('active', role === 'relay');
+  document.getElementById('role-exit').classList.toggle('active', role === 'exit');
+  document.getElementById('block-relay').style.display = role === 'relay' ? 'block' : 'none';
+  document.getElementById('block-exit').style.display = role === 'exit' ? 'block' : 'none';
+  document.getElementById('vless-link-block').style.display = role === 'relay' ? 'block' : 'none';
+  document.getElementById('cfg-output').value = '';
+  if (role === 'exit' && !document.getElementById('exit-server-ip').value) detectExitIP();
+}
+
+async function doLogin() {
+  const pw = document.getElementById('pw-input').value;
+  document.getElementById('login-err').textContent = '';
+  try {
+    const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw}) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || '登入失敗');
+    TOKEN = d.token; localStorage.setItem('relay_token', TOKEN);
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    initApp();
+  } catch(e) { document.getElementById('login-err').textContent = e.message; }
+}
+document.getElementById('pw-input').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+async function doLogout() {
+  await api('POST','/api/logout'); TOKEN=''; localStorage.removeItem('relay_token'); location.reload();
+}
+
+if (TOKEN) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  initApp();
+}
+
+async function api(method, path, body) {
+  const opts = { method, headers:{'Content-Type':'application/json','x-token':TOKEN} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (r.status===401) { TOKEN=''; localStorage.removeItem('relay_token'); location.reload(); return; }
+  try { return await r.json(); } catch { return {error:'回應格式錯誤'}; }
+}
+
+function toast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show '+type;
+  clearTimeout(t._t); t._t = setTimeout(()=>{ t.className=''; }, 2800);
+}
+
+function gotoTab(name) {
+  const names = ['dashboard','config','editor','logs','rules'];
+  const labels = ['概覽','設定生成','設定編輯','日誌','路由規則'];
+  document.querySelectorAll('.nav-tab').forEach(el => {
+    el.classList.toggle('active', el.textContent.trim()===labels[names.indexOf(name)]);
+  });
+  document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('active');
+  if (name==='editor') loadConfig();
+  if (name==='rules') renderRules();
+}
+
+function initApp() {
+  initDefaults();
+  refreshDashboard();
+  setInterval(refreshDashboard, 10000);
+  api('GET','/api/publicip').then(d => {
+    if (d && d.ip) {
+      document.getElementById('vless-server-ip').value = d.ip;
+      document.getElementById('stat-pubip').textContent = d.ip;
+    }
+  });
+}
+
+function fmtBytes(b) {
+  if (b >= 1e12) return (b/1e12).toFixed(2)+' TB';
+  if (b >= 1e9)  return (b/1e9).toFixed(2)+' GB';
+  if (b >= 1e6)  return (b/1e6).toFixed(1)+' MB';
+  if (b >= 1e3)  return (b/1e3).toFixed(0)+' KB';
+  return b+' B';
+}
+
+async function refreshDashboard() {
+  const [status, info, traffic] = await Promise.all([
+    api('GET','/api/status'),
+    api('GET','/api/sysinfo'),
+    api('GET','/api/traffic'),
+  ]);
+  if (status) {
+    const badge = document.getElementById('service-badge');
+    const dot = document.getElementById('global-dot');
+    const reasonEl = document.getElementById('service-reason');
+    if (status.running) {
+      badge.textContent='運行中'; badge.className='service-badge running';
+      dot.className='dot green';
+      document.getElementById('global-status').textContent='服務正常';
+      reasonEl.style.display='none';
+    } else {
+      badge.textContent='已停止'; badge.className='service-badge stopped';
+      dot.className='dot red';
+      document.getElementById('global-status').textContent='服務停止';
+      if (status.reason) { reasonEl.textContent=status.reason; reasonEl.style.display='block'; }
+      else { reasonEl.style.display='none'; }
+    }
+  }
+  if (info && !info.error) {
+    document.getElementById('stat-cpu').textContent = info.cpu||'--';
+    document.getElementById('stat-mem').textContent = info.mem||'--';
+    document.getElementById('stat-disk').textContent = info.disk||'--';
+    document.getElementById('stat-uptime').textContent = (info.uptime||'--').replace('up ','');
+  }
+  if (traffic && !traffic.error) {
+    if (traffic.source === 'vnstat') {
+      document.getElementById('stat-rx').textContent = fmtBytes(traffic.month_rx);
+      document.getElementById('stat-tx').textContent = fmtBytes(traffic.month_tx);
+      document.getElementById('stat-rx-sub').textContent = '本月 / 累計 ' + fmtBytes(traffic.total_rx);
+      document.getElementById('stat-tx-sub').textContent = '本月 / 累計 ' + fmtBytes(traffic.total_tx);
+    } else {
+      document.getElementById('stat-rx').textContent = fmtBytes(traffic.rx);
+      document.getElementById('stat-tx').textContent = fmtBytes(traffic.tx);
+      document.getElementById('stat-rx-sub').textContent = '開機累計';
+      document.getElementById('stat-tx-sub').textContent = '開機累計';
+    }
+  }
+}
+
+async function restartService() {
+  toast('重啟中...');
+  const d = await api('POST','/api/restart');
+  if (d&&d.ok) { toast('重啟成功'); refreshDashboard(); }
+  else toast(d&&d.error?d.error:'重啟失敗','err');
+}
+
+async function stopService() {
+  if (!confirm('確定要停止 sing-box 服務？')) return;
+  const d = await api('POST','/api/stop');
+  if (d&&d.ok) { toast('已停止服務'); refreshDashboard(); }
+  else toast(d&&d.error?d.error:'停止失敗','err');
+}
+
+// Config Generator
+function onProtoChange() {
+  const proto = document.getElementById('cfg-in-proto').value;
+  document.getElementById('reality-block').style.display = proto==='vless-reality'?'block':'none';
+}
+
+function makeUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+    const r=Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16);
+  });
+}
+function genShortIDVal() {
+  const h='0123456789abcdef';
+  return Array.from({length:8},()=>h[Math.floor(Math.random()*16)]).join('');
+}
+function genExitUUID() { document.getElementById('cfg-exit-gen-uuid').value = makeUUID(); }
+
+function makePortCard(portNum) {
+  const uuid = makeUUID();
+  const shortid = genShortIDVal();
+  const div = document.createElement('div');
+  div.className = 'port-card';
+  div.innerHTML = `
+    <div class="port-card-head">
+      <input class="form-input port-num" type="number" placeholder="例如 443" value="${portNum||''}" style="width:110px;flex-shrink:0">
+      <span class="pc-uuid-hint" style="font-size:11px;color:var(--muted);flex:1;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">UUID: ${uuid.slice(0,8)}...</span>
+      <button class="btn sm" onclick="togglePortCard(this)" style="flex-shrink:0">設定 ▾</button>
+      <button class="btn sm danger" onclick="this.closest('.port-card').remove()" style="flex-shrink:0">✕</button>
+    </div>
+    <div class="port-card-body" style="display:none">
+      <div class="form-grid" style="margin-top:12px">
+        <div class="form-group">
+          <div class="form-label">UUID（此端口）</div>
+          <div class="input-group">
+            <input class="form-input pc-uuid" value="${uuid}">
+            <button class="btn sm" onclick="regenPortUUID(this)">重新生成</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Short ID（REALITY 用）</div>
+          <div class="input-group">
+            <input class="form-input pc-shortid" value="${shortid}">
+            <button class="btn sm" onclick="regenPortShortID(this)">重新生成</button>
+          </div>
+        </div>
+      </div>
+      <div class="port-card-sub">此端口 → 落地機出站</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <div class="form-label">落地機 IP</div>
+          <input class="form-input pc-exit-ip" placeholder="203.69.x.x">
+        </div>
+        <div class="form-group">
+          <div class="form-label">落地機端口</div>
+          <input class="form-input pc-exit-port" type="number" placeholder="例如 8443">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <div class="form-label">連線協議</div>
+          <select class="form-select pc-out-proto">
+            <option value="vless">VLESS</option>
+            <option value="trojan">Trojan TLS</option>
+            <option value="shadowsocks">Shadowsocks</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">落地機 UUID / 密碼</div>
+          <input class="form-input pc-exit-uuid" placeholder="貼入落地機 UUID">
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" class="pc-out-tls"> 出站啟用 TLS（落地機有 TLS 才勾）
+      </label>
+    </div>
+  `;
+  div.querySelector('.pc-uuid').addEventListener('input', function() {
+    div.querySelector('.pc-uuid-hint').textContent = 'UUID: ' + (this.value.slice(0,8)||'--') + '...';
+  });
+  return div;
+}
+
+function togglePortCard(btn) {
+  const body = btn.closest('.port-card').querySelector('.port-card-body');
+  const show = body.style.display === 'none';
+  body.style.display = show ? 'block' : 'none';
+  btn.textContent = show ? '設定 ▴' : '設定 ▾';
+}
+
+function regenPortUUID(btn) {
+  const card = btn.closest('.port-card');
+  const uuid = makeUUID();
+  card.querySelector('.pc-uuid').value = uuid;
+  card.querySelector('.pc-uuid-hint').textContent = 'UUID: ' + uuid.slice(0,8) + '...';
+}
+
+function regenPortShortID(btn) {
+  btn.closest('.port-card').querySelector('.pc-shortid').value = genShortIDVal();
+}
+
+function addPort(portNum) {
+  document.getElementById('port-list').appendChild(makePortCard(portNum));
+}
+
+function getPortsData() {
+  return Array.from(document.querySelectorAll('#port-list .port-card')).map(card => ({
+    port: +card.querySelector('.port-num').value,
+    uuid: card.querySelector('.pc-uuid').value || makeUUID(),
+    shortid: card.querySelector('.pc-shortid').value || genShortIDVal(),
+    exitIp: card.querySelector('.pc-exit-ip').value.trim(),
+    exitPort: +card.querySelector('.pc-exit-port').value,
+    outProto: card.querySelector('.pc-out-proto').value,
+    exitUUID: card.querySelector('.pc-exit-uuid').value.trim(),
+    useTLS: card.querySelector('.pc-out-tls').checked,
+  })).filter(d => d.port >= 1 && d.port <= 65535);
+}
+
+async function genRealityKeypair() {
+  toast('生成中...');
+  const d = await api('GET','/api/gen/reality-keypair');
+  if (!d||d.error) { toast(d&&d.error?d.error:'生成失敗，請確認 sing-box 已安裝','err'); return; }
+  const privM = d.output.match(/PrivateKey:\s*(\S+)/);
+  const pubM = d.output.match(/PublicKey:\s*(\S+)/);
+  if (privM) document.getElementById('cfg-privkey').value = privM[1];
+  if (pubM) document.getElementById('cfg-pubkey').value = pubM[1];
+  toast('密鑰已生成');
+}
+
+
+async function detectExitIP() {
+  const d = await api('GET', '/api/publicip');
+  if (d && d.ip) { document.getElementById('exit-server-ip').value = d.ip; toast('IP 偵測成功：' + d.ip); }
+  else toast('偵測失敗，請手動輸入', 'err');
+}
+
+function buildExitLink() {
+  const ip = document.getElementById('exit-server-ip').value.trim();
+  const port = document.getElementById('cfg-exit-listen-port').value;
+  const uuid = document.getElementById('cfg-exit-gen-uuid').value;
+  const proto = document.getElementById('cfg-exit-proto').value;
+  if (!ip) { toast('請填入公網 IP', 'err'); return; }
+  if (!port) { toast('請填入監聽端口', 'err'); return; }
+  if (!uuid) { toast('請先生成 UUID', 'err'); return; }
+  const name = encodeURIComponent('ExitNode');
+  let link = '';
+  if (proto === 'vless') {
+    link = `vless://${uuid}@${ip}:${port}?type=tcp&security=none&encryption=none#${name}`;
+  } else if (proto === 'trojan') {
+    link = `trojan://${uuid}@${ip}:${port}?type=tcp#${name}`;
+  } else {
+    toast('Shadowsocks 請手動設定', 'err'); return;
+  }
+  document.getElementById('exit-vless-link').value = link;
+  toast('連結已生成');
+}
+
+async function generateConfig() {
+  let cfg = {};
+
+  if (currentRole === 'relay') {
+    const proto   = document.getElementById('cfg-in-proto').value;
+    const sni     = document.getElementById('cfg-sni').value || 'www.microsoft.com';
+    const privkey = document.getElementById('cfg-privkey').value || '（填入私鑰）';
+    const portData = getPortsData();
+
+    if (!portData.length) { toast('請填入至少一個有效的監聽端口', 'err'); return false; }
+    const validPorts = portData.filter(d => d.exitIp && d.exitPort >= 1 && d.exitPort <= 65535);
+    if (!validPorts.length) { toast('請為至少一個端口設定落地機 IP 和端口', 'err'); return false; }
+
+    const makeInbound = (d) => {
+      const tag = `in-${d.port}`;
+      if (proto === 'vless-reality') return {
+        type:'vless', tag, listen:'0.0.0.0', listen_port:d.port,
+        users:[{uuid:d.uuid, flow:'xtls-rprx-vision'}],
+        tls:{enabled:true,server_name:sni,reality:{enabled:true,
+          handshake:{server:sni,server_port:443},private_key:privkey,short_id:[d.shortid]}}
+      };
+      if (proto === 'trojan') return {
+        type:'trojan', tag, listen:'0.0.0.0', listen_port:d.port,
+        users:[{password:d.uuid}],
+        tls:{enabled:true,certificate_path:'/etc/ssl/cert.pem',key_path:'/etc/ssl/key.pem'}
+      };
+      return {
+        type:'vmess', tag, listen:'0.0.0.0', listen_port:d.port,
+        users:[{uuid:d.uuid, alterId:0}], transport:{type:'ws',path:'/relay'}
+      };
+    };
+
+    const makeOutbound = (d) => {
+      const tag = `to-exit-${d.port}`;
+      const tlsCfg = d.useTLS ? {tls:{enabled:true,insecure:true}} : {};
+      if (d.outProto === 'vless') return {type:'vless',tag,server:d.exitIp,server_port:d.exitPort,uuid:d.exitUUID||'（填入UUID）',...tlsCfg};
+      if (d.outProto === 'trojan') return {type:'trojan',tag,server:d.exitIp,server_port:d.exitPort,password:d.exitUUID||'（填入密碼）',...tlsCfg};
+      return {type:'shadowsocks',tag,server:d.exitIp,server_port:d.exitPort,method:'aes-256-gcm',password:d.exitUUID||'（填入密碼）'};
+    };
+
+    const inbounds = portData.map(makeInbound);
+    const outbounds = validPorts.map(makeOutbound);
+    outbounds.push({type:'direct',tag:'direct'});
+
+    const rules = validPorts.map(d => ({inbound:[`in-${d.port}`], outbound:`to-exit-${d.port}`}));
+
+    cfg = {
+      log:{level:'warn',output:'/var/log/sing-box.log'},
+      experimental:{clash_api:{external_controller:'127.0.0.1:9090',secret:''}},
+      inbounds,
+      outbounds,
+      route:{rules, final:'direct', auto_detect_interface:true}
+    };
+
+  } else {
+    const proto    = document.getElementById('cfg-exit-proto').value;
+    const port     = +document.getElementById('cfg-exit-listen-port').value;
+    const uuid     = document.getElementById('cfg-exit-gen-uuid').value || makeUUID();
+    if (!port || port < 1 || port > 65535) { toast('請填入有效的監聽端口', 'err'); return false; }
+
+    const exitUseTLS = document.getElementById('cfg-exit-tls').checked;
+    const exitTlsCfg = exitUseTLS ? {tls:{enabled:true,certificate_path:'/etc/ssl/cert.pem',key_path:'/etc/ssl/key.pem'}} : {};
+    const inbound = proto === 'vless' ? {
+      type:'vless', listen:'0.0.0.0', listen_port:port,
+      users:[{uuid}], ...exitTlsCfg
+    } : proto === 'trojan' ? {
+      type:'trojan', listen:'0.0.0.0', listen_port:port,
+      users:[{password:uuid}], ...exitTlsCfg
+    } : {
+      type:'shadowsocks', listen:'0.0.0.0', listen_port:port,
+      method:'aes-256-gcm', password:uuid
+    };
+
+    cfg = {
+      log:{level:'warn',output:'/var/log/sing-box.log'},
+      inbounds:[inbound],
+      outbounds:[{type:'direct',tag:'direct'}],
+      route:{final:'direct',auto_detect_interface:true}
+    };
+  }
+
+  document.getElementById('cfg-output').value = JSON.stringify(cfg, null, 2);
+
+  return true;
+}
+
+async function doPing() {
+  const ip = document.getElementById('ping-ip').value.trim();
+  const port = document.getElementById('ping-port').value.trim();
+  if (!ip) { toast('請輸入落地機 IP', 'err'); return; }
+  const btn = document.getElementById('ping-btn');
+  const badge = document.getElementById('ping-badge');
+  btn.disabled = true; btn.textContent = '測試中...';
+  badge.style.display = 'none';
+  document.getElementById('ping-result').style.display = 'none';
+
+  const url = `/api/ping?ip=${encodeURIComponent(ip)}${port ? '&port='+port : ''}`;
+  const d = await api('GET', url);
+  btn.disabled = false; btn.textContent = '測試連線';
+  if (!d) { toast('請求失敗', 'err'); return; }
+
+  document.getElementById('ping-result').style.display = 'block';
+  badge.style.display = 'block';
+
+  // ICMP
+  const icmpEl = document.getElementById('ping-icmp-val');
+  if (d.ping && d.ping.ok) {
+    icmpEl.textContent = d.ping.avg ? d.ping.avg.toFixed(1) + ' ms' : '通';
+    icmpEl.style.color = 'var(--green)';
+  } else {
+    icmpEl.textContent = '不通 / 封鎖';
+    icmpEl.style.color = 'var(--amber)';
+  }
+
+  // TCP
+  const tcpEl = document.getElementById('ping-tcp-val');
+  if (d.tcp) {
+    if (d.tcp.ok) {
+      tcpEl.textContent = `通 (${d.tcp.ms} ms)`;
+      tcpEl.style.color = 'var(--green)';
+    } else {
+      tcpEl.textContent = `不通（port ${d.tcp.port}）`;
+      tcpEl.style.color = 'var(--red)';
+    }
+    badge.textContent = d.tcp.ok ? '已連通' : '無法連接';
+    badge.className = d.tcp.ok ? 'service-badge running' : 'service-badge stopped';
+  } else {
+    tcpEl.textContent = '未測試';
+    tcpEl.style.color = 'var(--muted)';
+    badge.textContent = d.ping && d.ping.ok ? 'Ping 通' : '不通';
+    badge.className = d.ping && d.ping.ok ? 'service-badge running' : 'service-badge stopped';
+  }
+}
+
+async function detectIP() {
+  const d = await api('GET', '/api/publicip');
+  if (d && d.ip) {
+    document.getElementById('vless-server-ip').value = d.ip;
+    toast('IP 偵測成功：' + d.ip);
+  } else {
+    toast('偵測失敗，請手動輸入', 'err');
+  }
+}
+
+function buildVlessLink() {
+  const serverIP = document.getElementById('vless-server-ip').value.trim();
+  const baseName = document.getElementById('vless-link-name').value || 'RelayBox';
+  const pubkey = document.getElementById('cfg-pubkey').value;
+  const sni = document.getElementById('cfg-sni').value || 'www.microsoft.com';
+  const proto = document.getElementById('cfg-in-proto').value;
+
+  if (!serverIP) { toast('請填入公網 IP', 'err'); return; }
+  if (proto === 'vless-reality' && !pubkey) { toast('請先按「本機生成」取得 REALITY 公鑰', 'err'); return; }
+
+  const portData = getPortsData();
+  if (!portData.length) { toast('請先設定至少一個端口', 'err'); return; }
+
+  const links = portData.map(d => {
+    const linkName = encodeURIComponent(portData.length > 1 ? `${baseName}-${d.port}` : baseName);
+    if (proto === 'vless-reality') {
+      return `vless://${d.uuid}@${serverIP}:${d.port}?security=reality&encryption=none&pbk=${encodeURIComponent(pubkey)}&fp=chrome&sid=${d.shortid}&sni=${sni}&flow=xtls-rprx-vision&type=tcp#${linkName}`;
+    }
+    if (proto === 'trojan') {
+      return `trojan://${d.uuid}@${serverIP}:${d.port}?type=tcp#${linkName}`;
+    }
+    return `vmess://${btoa(JSON.stringify({v:'2',ps:decodeURIComponent(linkName),add:serverIP,port:String(d.port),id:d.uuid,aid:0,net:'ws',path:'/relay',tls:''}))}`;
+  });
+
+  document.getElementById('vless-link-input').value = links.join('\n');
+  toast(links.length > 1 ? `已生成 ${links.length} 個連結` : '連結已生成，點複製即可');
+}
+
+function copyVlessLink() {
+  const val = document.getElementById('vless-link-input').value;
+  if (!val) { buildVlessLink(); return; }
+  copyText(val, '已複製，貼到 v2rayN 匯入');
+}
+
+function copyOutput() {
+  copyText(document.getElementById('cfg-output').value);
+}
+
+async function applyConfig() {
+  if (!generateConfig()) return;
+  const config = document.getElementById('cfg-output').value;
+  if (!config) return;
+  if (!confirm('確定要套用設定並重啟 sing-box？')) return;
+  const d = await api('POST','/api/config',{config});
+  if (d&&d.ok) { toast('套用成功，服務已重啟'); refreshDashboard(); }
+  else toast(d&&d.error?d.error:'套用失敗','err');
+}
+
+// Config Editor
+async function loadConfig() {
+  const d = await api('GET','/api/config');
+  if (d&&d.config) document.getElementById('raw-config').value = d.config;
+  else document.getElementById('raw-config').placeholder = d&&d.error?d.error:'無法讀取設定';
+}
+
+async function saveConfig() {
+  const config = document.getElementById('raw-config').value;
+  try { JSON.parse(config); } catch(e) { toast('JSON 格式錯誤: '+e.message,'err'); return; }
+  if (!confirm('確定要儲存設定並重啟 sing-box？')) return;
+  const d = await api('POST','/api/config',{config});
+  if (d&&d.ok) { toast('儲存成功，服務已重啟'); refreshDashboard(); }
+  else toast(d&&d.error?d.error:'儲存失敗','err');
+}
+
+// Logs
+async function fetchLogs() {
+  const lines = document.getElementById('log-lines').value;
+  document.getElementById('log-spin').style.display = 'inline-block';
+  const d = await api('GET',`/api/logs?lines=${lines}`);
+  document.getElementById('log-spin').style.display = 'none';
+  if (!d||d.error) { toast(d&&d.error?d.error:'讀取失敗','err'); return; }
+  const html = d.logs.split('\n').filter(Boolean).map(line=>{
+    const cls = /error|ERROR/.test(line)?'err':/warn|WARN/.test(line)?'warn':/info|INFO/.test(line)?'info':'';
+    const m = line.match(/(\d{2}:\d{2}:\d{2})/);
+    const time = m?m[1]:'--:--:--';
+    const safe = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return `<div class="log-line ${cls}"><span class="log-time">${time}</span><span class="log-msg">${safe}</span></div>`;
+  }).join('');
+  document.getElementById('log-box').innerHTML = html||'<div class="log-line"><span class="log-msg" style="color:var(--muted)">無日誌</span></div>';
+  document.getElementById('log-box').scrollTop = 9999;
+}
+
+function clearLogDisplay() {
+  document.getElementById('log-box').innerHTML = '<div class="log-line info"><span class="log-time">--:--:--</span><span class="log-msg">已清除</span></div>';
+}
+
+// Rules
+const RULES_DATA = [
+  {name:'大陸 IP 直連', target:'geoip:cn', action:'direct', color:'#4ade80'},
+  {name:'私有網段直連', target:'geoip:private', action:'direct', color:'#4ade80'},
+  {name:'廣告攔截', target:'geosite:category-ads-all', action:'block', color:'#f87171'},
+  {name:'大陸域名直連', target:'geosite:cn', action:'direct', color:'#4ade80'},
+  {name:'其餘流量', target:'所有其他流量 → 出口機', action:'relay', color:'#60a5fa'},
+];
+const RULES_JSON = {route:{rules:[
+  {geoip:['private'],outbound:'direct'},
+  {geoip:['cn'],outbound:'direct'},
+  {geosite:['cn'],outbound:'direct'},
+  {geosite:['category-ads-all'],outbound:'block'},
+],final:'to-exit',auto_detect_interface:true}};
+
+function renderRules() {
+  document.getElementById('rules-list').innerHTML = RULES_DATA.map(r=>
+    `<div class="rule-row"><div class="rule-dot" style="background:${r.color}"></div><div class="rule-name">${r.name}</div><div class="rule-target">${r.target}</div><div class="rule-action ${r.action}">${r.action==='relay'?'走出口機':r.action==='direct'?'直連':'攔截'}</div></div>`
+  ).join('');
+  document.getElementById('rules-json').value = JSON.stringify(RULES_JSON,null,2);
+}
+
+function copyRules() {
+  copyText(document.getElementById('rules-json').value);
+}
+</script>
+</body>
+</html>
