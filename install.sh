@@ -58,11 +58,11 @@ log "Node.js 安裝完成 ($($NODE_BIN --version))"
 
 # ── 下載 kuoboX ────────────────────────────
 info "下載 kuoboX 到 $INSTALL_DIR ..."
-curl -fsSL https://github.com/kuobou/kuobox/archive/refs/heads/main.zip -o /tmp/kuobox.zip
+curl -fsSL https://github.com/kuobou/kuoboX/archive/refs/heads/main.zip -o /tmp/kuobox.zip
 unzip -q -o /tmp/kuobox.zip -d /tmp/
 mkdir -p "$INSTALL_DIR"
-cp -rf /tmp/kuobox-main/. "$INSTALL_DIR/"
-rm -rf /tmp/kuobox.zip /tmp/kuobox-main
+cp -rf /tmp/kuoboX-main/. "$INSTALL_DIR/"
+rm -rf /tmp/kuobox.zip /tmp/kuoboX-main
 cd "$INSTALL_DIR"
 log "下載完成"
 
