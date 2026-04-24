@@ -432,6 +432,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <div class="actions-bar">
         <button class="btn primary" onclick="applyConfig()">套用到本機並重啟</button>
         <button class="btn" onclick="generateConfig()">只生成不套用</button>
+        <div class="spacer"></div>
+        <button class="btn sm" onclick="configFormLoaded=false;loadConfigIntoForm()" style="color:var(--muted)">↺ 從目前設定載入</button>
       </div>
 
       <hr class="divider">
@@ -581,6 +583,8 @@ function toast(msg, type='ok') {
   clearTimeout(t._t); t._t = setTimeout(()=>{ t.className=''; }, 2800);
 }
 
+let configFormLoaded = false;
+
 function gotoTab(name) {
   const names = ['dashboard','config','editor','logs','rules'];
   const labels = ['概覽','設定生成','設定編輯','日誌','路由規則'];
@@ -591,6 +595,7 @@ function gotoTab(name) {
   document.getElementById('section-'+name).classList.add('active');
   if (name==='editor') loadConfig();
   if (name==='rules') renderRules();
+  if (name==='config' && !configFormLoaded) loadConfigIntoForm();
 }
 
 function initApp() {
@@ -925,6 +930,74 @@ async function detectExitIP() {
   else toast('偵測失敗，請手動輸入', 'err');
 }
 
+
+async function loadConfigIntoForm() {
+  const d = await api('GET', '/api/config');
+  if (!d || d.error || !d.config) return;
+  let cfg;
+  try { cfg = JSON.parse(d.config); } catch { return; }
+
+  const inbounds = cfg.inbounds || [];
+  const outbounds = cfg.outbounds || [];
+  const rules = cfg.route?.rules || [];
+  if (!inbounds.length) return;
+
+  const nonDirect = outbounds.filter(o => o.type !== 'direct');
+  const role = nonDirect.length > 0 ? 'relay' : 'exit';
+  switchRole(role);
+
+  if (role === 'relay') {
+    const firstIn = inbounds[0];
+    let proto = 'vless-reality';
+    if (firstIn.type === 'trojan') proto = 'trojan';
+    else if (firstIn.type === 'vmess') proto = 'vmess-ws';
+    document.getElementById('cfg-in-proto').value = proto;
+    onProtoChange();
+
+    if (firstIn.tls?.reality) {
+      document.getElementById('cfg-sni').value = firstIn.tls.server_name || 'www.microsoft.com';
+      document.getElementById('cfg-privkey').value = firstIn.tls.reality.private_key || '';
+    }
+
+    document.getElementById('port-list').innerHTML = '';
+    inbounds.forEach(inb => {
+      const uuid = inb.users?.[0]?.uuid || inb.users?.[0]?.password || makeUUID();
+      const shortid = inb.tls?.reality?.short_id?.[0] || genShortIDVal();
+      const rule = rules.find(r => r.inbound?.includes(inb.tag));
+      const out = outbounds.find(o => o.tag === rule?.outbound) || {};
+      const card = makePortCard(inb.listen_port);
+      document.getElementById('port-list').appendChild(card);
+      card.querySelector('.pc-uuid').value = uuid;
+      card.querySelector('.pc-uuid-hint').textContent = 'UUID: ' + uuid.slice(0,8) + '...';
+      card.querySelector('.pc-shortid').value = shortid;
+      card.querySelector('.pc-exit-ip').value = out.server || '';
+      card.querySelector('.pc-exit-port').value = out.server_port || '';
+      card.querySelector('.pc-out-proto').value = out.type || 'vless';
+      card.querySelector('.pc-exit-uuid').value = out.uuid || out.password || '';
+      card.querySelector('.pc-out-tls').checked = !!out.tls?.enabled;
+    });
+
+  } else {
+    const firstIn = inbounds[0];
+    let proto = 'vless';
+    if (firstIn.type === 'trojan') proto = 'trojan';
+    else if (firstIn.type === 'shadowsocks') proto = 'shadowsocks';
+    document.getElementById('cfg-exit-proto').value = proto;
+    document.getElementById('cfg-exit-tls').checked = !!firstIn.tls?.enabled;
+
+    document.getElementById('exit-port-list').innerHTML = '';
+    inbounds.forEach(inb => {
+      const uuid = inb.users?.[0]?.uuid || inb.users?.[0]?.password || inb.password || makeUUID();
+      const card = makeExitPortCard(inb.listen_port);
+      document.getElementById('exit-port-list').appendChild(card);
+      card.querySelector('.ep-uuid').value = uuid;
+      card.querySelector('.ep-uuid-hint').textContent = 'UUID: ' + uuid.slice(0,8) + '...';
+    });
+  }
+
+  configFormLoaded = true;
+  toast('已從目前設定載入');
+}
 
 async function generateConfig() {
   let cfg = {};
