@@ -876,10 +876,14 @@ function getExitPortsData() {
   })).filter(d => d.port >= 1 && d.port <= 65535);
 }
 
-function buildExitPortLink(btn) {
+async function buildExitPortLink(btn) {
   const card = btn.closest('.port-card');
-  const ip = document.getElementById('exit-server-ip').value.trim();
-  if (!ip) { toast('請先填入或偵測公網 IP', 'err'); return; }
+  let ip = document.getElementById('exit-server-ip').value.trim();
+  if (!ip) {
+    await detectExitIP(true);
+    ip = document.getElementById('exit-server-ip').value.trim();
+    if (!ip) { toast('IP 偵測失敗，請手動輸入', 'err'); return; }
+  }
   const port = +card.querySelector('.ep-num').value;
   if (!port) { toast('請先填入端口號', 'err'); return; }
   const uuid = card.querySelector('.ep-uuid').value;
@@ -932,10 +936,10 @@ async function genRealityKeypair(silent) {
 }
 
 
-async function detectExitIP() {
+async function detectExitIP(silent) {
   const d = await api('GET', '/api/publicip');
-  if (d && d.ip) { document.getElementById('exit-server-ip').value = d.ip; toast('IP 偵測成功：' + d.ip); }
-  else toast('偵測失敗，請手動輸入', 'err');
+  if (d && d.ip) { document.getElementById('exit-server-ip').value = d.ip; if (!silent) toast('IP 偵測成功：' + d.ip); }
+  else if (!silent) toast('偵測失敗，請手動輸入', 'err');
 }
 
 
