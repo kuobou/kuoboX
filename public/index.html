@@ -345,21 +345,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     <!-- Config Generator -->
     <div class="section" id="section-config">
 
-      <!-- 角色選擇 -->
-      <div class="role-tabs">
-        <div class="role-tab active" id="role-relay" onclick="switchRole('relay')">
-          <div class="role-tab-title">中轉機</div>
-          <div class="role-tab-sub">接收客戶端，轉發到落地機</div>
-        </div>
-        <div class="role-tab" id="role-exit" onclick="switchRole('exit')">
-          <div class="role-tab-title">落地機</div>
-          <div class="role-tab-sub">接收中轉機，直接出口</div>
-        </div>
-      </div>
-
       <!-- 中轉機設定 -->
       <div id="block-relay">
-        <div class="section-title">客戶端入站（客戶端連線到此機器）</div>
+        <div class="section-title">中轉入站（客戶端連線，轉發到落地機）</div>
         <div class="form-group" style="margin-bottom:10px">
           <div class="form-label">入站協議</div>
           <select class="form-select" id="cfg-in-proto" onchange="onProtoChange()" style="max-width:280px">
@@ -396,8 +384,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       </div>
 
       <!-- 落地機設定 -->
-      <div id="block-exit" style="display:none">
-        <div class="section-title">入站設定（接收中轉機連線）</div>
+      <hr class="divider">
+      <div id="block-exit">
+        <div class="section-title">落地入站（接收中轉機連線，直接出口）</div>
         <div class="form-grid" style="margin-bottom:10px">
           <div class="form-group">
             <div class="form-label">協議</div>
@@ -534,14 +523,7 @@ function initDefaults() { addPort(); addExitPort(); }
 
 function switchRole(role) {
   currentRole = role;
-  document.getElementById('role-relay').classList.toggle('active', role === 'relay');
-  document.getElementById('role-exit').classList.toggle('active', role === 'exit');
-  document.getElementById('block-relay').style.display = role === 'relay' ? 'block' : 'none';
-  document.getElementById('block-exit').style.display = role === 'exit' ? 'block' : 'none';
-  document.getElementById('vless-link-block').style.display = role === 'relay' ? 'block' : 'none';
   document.getElementById('cfg-output').value = '';
-  if (role === 'exit' && !document.getElementById('exit-port-list').children.length) addExitPort();
-  if (role === 'exit' && !configFormLoaded && !document.getElementById('exit-server-ip').value) detectExitIP();
 }
 
 async function doLogin() {
@@ -961,18 +943,21 @@ async function loadConfigIntoForm() {
   const rules = cfg.route?.rules || [];
   if (!inbounds.length) { toast('設定中沒有 inbounds，無法載入', 'err'); return; }
 
-  const nonDirect = outbounds.filter(o => o.type !== 'direct');
-  const role = nonDirect.length > 0 ? 'relay' : 'exit';
-  switchRole(role);
+  // 分類：有對應非 direct 出站 route 的是中轉入站，其餘為落地入站
+  const relayInbounds = inbounds.filter(inb => {
+    const rule = rules.find(r => r.inbound?.includes(inb.tag));
+    return rule && outbounds.find(o => o.tag === rule.outbound && o.type !== 'direct');
+  });
+  const exitInbounds = inbounds.filter(inb => !relayInbounds.includes(inb));
 
-  if (role === 'relay') {
-    const firstIn = inbounds[0];
+  // 載入中轉區塊
+  if (relayInbounds.length) {
+    const firstIn = relayInbounds[0];
     let proto = 'vless-reality';
     if (firstIn.type === 'trojan') proto = 'trojan';
     else if (firstIn.type === 'vmess') proto = 'vmess-ws';
     document.getElementById('cfg-in-proto').value = proto;
     onProtoChange();
-
     if (firstIn.tls?.reality) {
       document.getElementById('cfg-sni').value = firstIn.tls.server_name || 'www.microsoft.com';
       const privkey = firstIn.tls.reality.private_key || '';
@@ -980,9 +965,8 @@ async function loadConfigIntoForm() {
       const state = await api('GET', '/api/state');
       if (state?.reality_pubkey) document.getElementById('cfg-pubkey').value = state.reality_pubkey;
     }
-
     document.getElementById('port-list').innerHTML = '';
-    inbounds.forEach(inb => {
+    relayInbounds.forEach(inb => {
       const uuid = inb.users?.[0]?.uuid || inb.users?.[0]?.password || makeUUID();
       const shortid = inb.tls?.reality?.short_id?.[0] || genShortIDVal();
       const rule = rules.find(r => r.inbound?.includes(inb.tag));
@@ -998,17 +982,18 @@ async function loadConfigIntoForm() {
       card.querySelector('.pc-exit-uuid').value = out.uuid || out.password || '';
       card.querySelector('.pc-out-tls').checked = !!out.tls?.enabled;
     });
+  }
 
-  } else {
-    const firstIn = inbounds[0];
+  // 載入落地區塊
+  if (exitInbounds.length) {
+    const firstIn = exitInbounds[0];
     let proto = 'vless';
     if (firstIn.type === 'trojan') proto = 'trojan';
     else if (firstIn.type === 'shadowsocks') proto = 'shadowsocks';
     document.getElementById('cfg-exit-proto').value = proto;
     document.getElementById('cfg-exit-tls').checked = !!firstIn.tls?.enabled;
-
     document.getElementById('exit-port-list').innerHTML = '';
-    inbounds.forEach(inb => {
+    exitInbounds.forEach(inb => {
       const uuid = inb.users?.[0]?.uuid || inb.users?.[0]?.password || inb.password || makeUUID();
       const card = makeExitPortCard(inb.listen_port);
       document.getElementById('exit-port-list').appendChild(card);
@@ -1017,101 +1002,83 @@ async function loadConfigIntoForm() {
     });
   }
 
-  if (role === 'relay' && !document.getElementById('cfg-privkey').value) {
+  if (!document.getElementById('cfg-privkey').value && relayInbounds.length) {
     await genRealityKeypair(true);
     toast('已自動生成新 REALITY 密鑰對');
   }
 
-  if (role === 'exit' && !document.getElementById('exit-server-ip').value) {
-    detectExitIP();
-  }
+  if (!document.getElementById('exit-server-ip').value) detectExitIP(true);
 
   configFormLoaded = true;
   toast('已從目前設定載入');
 }
 
 async function generateConfig() {
-  let cfg = {};
+  const proto   = document.getElementById('cfg-in-proto').value;
+  const sni     = document.getElementById('cfg-sni').value || 'www.microsoft.com';
+  const privkey = document.getElementById('cfg-privkey').value.trim();
+  const relayPorts = getPortsData();
 
-  if (currentRole === 'relay') {
-    const proto   = document.getElementById('cfg-in-proto').value;
-    const sni     = document.getElementById('cfg-sni').value || 'www.microsoft.com';
-    const privkey = document.getElementById('cfg-privkey').value.trim();
-    const portData = getPortsData();
+  const exitProto = document.getElementById('cfg-exit-proto').value;
+  const exitUseTLS = document.getElementById('cfg-exit-tls').checked;
+  const exitTlsCfg = exitUseTLS ? {tls:{enabled:true,certificate_path:'/etc/ssl/cert.pem',key_path:'/etc/ssl/key.pem'}} : {};
+  const exitPorts = getExitPortsData();
 
-    if (!portData.length) { toast('請填入至少一個有效的監聽端口', 'err'); return false; }
-    const validPorts = portData.filter(d => d.exitIp && d.exitPort >= 1 && d.exitPort <= 65535);
-    if (!validPorts.length) { toast('請為至少一個端口設定落地機 IP 和端口', 'err'); return false; }
-
-    if (proto === 'vless-reality' && !privkey) {
-      toast('請先填入 REALITY 私鑰（或切換到設定生成頁面自動生成）', 'err');
-      return false;
-    }
-
-    const makeInbound = (d) => {
-      const tag = `in-${d.port}`;
-      if (proto === 'vless-reality') return {
-        type:'vless', tag, listen:'0.0.0.0', listen_port:d.port,
-        users:[{uuid:d.uuid, flow:'xtls-rprx-vision'}],
-        tls:{enabled:true,server_name:sni,reality:{enabled:true,
-          handshake:{server:sni,server_port:443},private_key:privkey,short_id:[d.shortid]}}
-      };
-      if (proto === 'trojan') return {
-        type:'trojan', tag, listen:'0.0.0.0', listen_port:d.port,
-        users:[{password:d.uuid}],
-        tls:{enabled:true,certificate_path:'/etc/ssl/cert.pem',key_path:'/etc/ssl/key.pem'}
-      };
-      return {
-        type:'vmess', tag, listen:'0.0.0.0', listen_port:d.port,
-        users:[{uuid:d.uuid, alterId:0}], transport:{type:'ws',path:'/relay'}
-      };
-    };
-
-    const makeOutbound = (d) => {
-      const tag = `to-exit-${d.port}`;
-      const tlsCfg = d.useTLS ? {tls:{enabled:true,insecure:true}} : {};
-      if (d.outProto === 'vless') return {type:'vless',tag,server:d.exitIp,server_port:d.exitPort,uuid:d.exitUUID||'（填入UUID）',...tlsCfg};
-      if (d.outProto === 'trojan') return {type:'trojan',tag,server:d.exitIp,server_port:d.exitPort,password:d.exitUUID||'（填入密碼）',...tlsCfg};
-      return {type:'shadowsocks',tag,server:d.exitIp,server_port:d.exitPort,method:'aes-256-gcm',password:d.exitUUID||'（填入密碼）'};
-    };
-
-    const inbounds = portData.map(makeInbound);
-    const outbounds = validPorts.map(makeOutbound);
-    outbounds.push({type:'direct',tag:'direct'});
-
-    const rules = validPorts.map(d => ({inbound:[`in-${d.port}`], outbound:`to-exit-${d.port}`}));
-
-    cfg = {
-      log:{level:'warn',output:'/var/log/sing-box.log'},
-      experimental:{clash_api:{external_controller:'127.0.0.1:9090',secret:''}},
-      inbounds,
-      outbounds,
-      route:{rules, final:'direct', auto_detect_interface:true}
-    };
-
-  } else {
-    const proto = document.getElementById('cfg-exit-proto').value;
-    const useTLS = document.getElementById('cfg-exit-tls').checked;
-    const tlsCfg = useTLS ? {tls:{enabled:true,certificate_path:'/etc/ssl/cert.pem',key_path:'/etc/ssl/key.pem'}} : {};
-    const exitPorts = getExitPortsData();
-    if (!exitPorts.length) { toast('請填入至少一個有效的監聽端口', 'err'); return false; }
-
-    const makeExitInbound = (d) => {
-      if (proto === 'vless') return {type:'vless', listen:'0.0.0.0', listen_port:d.port, users:[{uuid:d.uuid}], ...tlsCfg};
-      if (proto === 'trojan') return {type:'trojan', listen:'0.0.0.0', listen_port:d.port, users:[{password:d.uuid}], ...tlsCfg};
-      return {type:'shadowsocks', listen:'0.0.0.0', listen_port:d.port, method:'aes-256-gcm', password:d.uuid};
-    };
-
-    cfg = {
-      log:{level:'warn',output:'/var/log/sing-box.log'},
-      inbounds: exitPorts.map(makeExitInbound),
-      outbounds:[{type:'direct',tag:'direct'}],
-      route:{final:'direct',auto_detect_interface:true}
-    };
+  if (!relayPorts.length && !exitPorts.length) {
+    toast('請至少設定一個中轉或落地入站端口', 'err'); return false;
   }
 
-  document.getElementById('cfg-output').value = JSON.stringify(cfg, null, 2);
+  if (relayPorts.length && proto === 'vless-reality' && !privkey) {
+    toast('請先填入 REALITY 私鑰（或點「重新生成」）', 'err'); return false;
+  }
 
+  const validRelayPorts = relayPorts.filter(d => d.exitIp && d.exitPort >= 1 && d.exitPort <= 65535);
+
+  const makeRelayInbound = (d) => {
+    const tag = `in-${d.port}`;
+    if (proto === 'vless-reality') return {
+      type:'vless', tag, listen:'0.0.0.0', listen_port:d.port,
+      users:[{uuid:d.uuid, flow:'xtls-rprx-vision'}],
+      tls:{enabled:true,server_name:sni,reality:{enabled:true,
+        handshake:{server:sni,server_port:443},private_key:privkey,short_id:[d.shortid]}}
+    };
+    if (proto === 'trojan') return {
+      type:'trojan', tag, listen:'0.0.0.0', listen_port:d.port,
+      users:[{password:d.uuid}],
+      tls:{enabled:true,certificate_path:'/etc/ssl/cert.pem',key_path:'/etc/ssl/key.pem'}
+    };
+    return {type:'vmess', tag, listen:'0.0.0.0', listen_port:d.port,
+      users:[{uuid:d.uuid, alterId:0}], transport:{type:'ws',path:'/relay'}};
+  };
+
+  const makeRelayOutbound = (d) => {
+    const tag = `to-exit-${d.port}`;
+    const tlsCfg = d.useTLS ? {tls:{enabled:true,insecure:true}} : {};
+    if (d.outProto === 'vless') return {type:'vless',tag,server:d.exitIp,server_port:d.exitPort,uuid:d.exitUUID||'（填入UUID）',...tlsCfg};
+    if (d.outProto === 'trojan') return {type:'trojan',tag,server:d.exitIp,server_port:d.exitPort,password:d.exitUUID||'（填入密碼）',...tlsCfg};
+    return {type:'shadowsocks',tag,server:d.exitIp,server_port:d.exitPort,method:'aes-256-gcm',password:d.exitUUID||'（填入密碼）'};
+  };
+
+  const makeExitInbound = (d) => {
+    const tag = `exit-${d.port}`;
+    if (exitProto === 'vless') return {type:'vless', tag, listen:'0.0.0.0', listen_port:d.port, users:[{uuid:d.uuid}], ...exitTlsCfg};
+    if (exitProto === 'trojan') return {type:'trojan', tag, listen:'0.0.0.0', listen_port:d.port, users:[{password:d.uuid}], ...exitTlsCfg};
+    return {type:'shadowsocks', tag, listen:'0.0.0.0', listen_port:d.port, method:'aes-256-gcm', password:d.uuid};
+  };
+
+  const allInbounds = [...relayPorts.map(makeRelayInbound), ...exitPorts.map(makeExitInbound)];
+  const allOutbounds = [...validRelayPorts.map(makeRelayOutbound), {type:'direct',tag:'direct'}];
+  const rules = validRelayPorts.map(d => ({inbound:[`in-${d.port}`], outbound:`to-exit-${d.port}`}));
+
+  const cfg = {
+    log:{level:'warn',output:'/var/log/sing-box.log'},
+    experimental:{clash_api:{external_controller:'127.0.0.1:9090',secret:''}},
+    inbounds: allInbounds,
+    outbounds: allOutbounds,
+    route:{rules, final:'direct', auto_detect_interface:true}
+  };
+
+  document.getElementById('cfg-output').value = JSON.stringify(cfg, null, 2);
   return true;
 }
 
