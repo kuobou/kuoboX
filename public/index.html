@@ -508,6 +508,15 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 var TOKEN = localStorage.getItem('relay_token') || '';
 var currentRole = 'relay';
 
+let configFormLoaded = false;
+const CHART_PTS = 60;
+const CHART_MS  = 2000;
+let chartRx = new Array(CHART_PTS).fill(0);
+let chartTx = new Array(CHART_PTS).fill(0);
+let chartLast = null;
+let chartBusy = false;
+let resizeTimer = null;
+
 function copyText(text, msg) {
   msg = msg || '已複製';
   if (navigator.clipboard && window.isSecureContext) {
@@ -582,8 +591,6 @@ function toast(msg, type='ok') {
   t.textContent = msg; t.className = 'show '+type;
   clearTimeout(t._t); t._t = setTimeout(()=>{ t.className=''; }, 2800);
 }
-
-let configFormLoaded = false;
 
 function gotoTab(name) {
   const names = ['dashboard','config','editor','logs','rules'];
@@ -1283,14 +1290,6 @@ function copyRules() {
 }
 
 // ── 實時流量圖 ─────────────────────────────────
-const CHART_PTS = 60;
-const CHART_MS  = 2000;
-let chartRx = new Array(CHART_PTS).fill(0);
-let chartTx = new Array(CHART_PTS).fill(0);
-let chartLast = null;
-let chartBusy = false;
-let resizeTimer = null;
-
 function initTrafficChart() {
   updateTrafficChart();
   setInterval(updateTrafficChart, CHART_MS);
