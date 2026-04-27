@@ -147,8 +147,10 @@ update_panel() {
 
 uninstall_panel() {
     echo ""
-    read -rp "確定要卸載 kuoboX 面板？所有設定將被刪除 [y/N]: " confirm
+    read -rp "確定要卸載 kuoboX 面板？[y/N]: " confirm
     [[ "$confirm" != "y" && "$confirm" != "Y" ]] && warn "已取消" && return
+
+    read -rp "同時刪除 sing-box 設定檔 (/etc/sing-box/config.json)？[y/N]: " del_cfg
 
     info "停止並移除服務..."
     systemctl stop "$SERVICE_NAME" 2>/dev/null
@@ -162,6 +164,11 @@ uninstall_panel() {
 
     info "移除管理指令..."
     rm -f /usr/bin/kuobox
+
+    if [[ "$del_cfg" == "y" || "$del_cfg" == "Y" ]]; then
+        rm -f /etc/sing-box/config.json
+        log "sing-box 設定檔已刪除"
+    fi
 
     echo ""
     log "kuoboX 已完整卸載"
