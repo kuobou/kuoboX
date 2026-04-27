@@ -150,7 +150,7 @@ uninstall_panel() {
     read -rp "確定要卸載 kuoboX 面板？[y/N]: " confirm
     [[ "$confirm" != "y" && "$confirm" != "Y" ]] && warn "已取消" && return
 
-    read -rp "同時刪除 sing-box 設定檔 (/etc/sing-box/config.json)？[y/N]: " del_cfg
+    read -rp "同時刪除網路設定檔？[y/N]: " del_cfg
 
     info "停止並移除服務..."
     systemctl stop "$SERVICE_NAME" 2>/dev/null
