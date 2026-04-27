@@ -437,9 +437,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       </div>
 
       <hr class="divider">
-      <div id="vless-link-block">
-      <div class="section-title">v2rayN / Clash 匯入連結</div>
-      <div class="form-grid" style="margin-bottom:10px">
+      <div class="section-title">連結設定（各端口「生成連結」共用）</div>
+      <div class="form-grid">
         <div class="form-group">
           <div class="form-label">這台機器的公網 IP</div>
           <div class="input-group">
@@ -452,12 +451,6 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
           <input class="form-input" id="vless-link-name" value="kuoboX">
         </div>
       </div>
-      <div class="input-group" style="margin-bottom:8px">
-        <input class="form-input" id="vless-link-input" readonly placeholder="填入公網 IP 後點擊生成" style="font-size:11px">
-        <button class="btn sm primary" onclick="buildVlessLink()">生成連結</button>
-        <button class="btn sm" onclick="copyVlessLink()">複製</button>
-      </div>
-      </div><!-- end vless-link-block -->
     </div>
 
     <!-- Config Editor -->
@@ -610,6 +603,7 @@ function initApp() {
   api('GET','/api/publicip').then(d => {
     if (d && d.ip) {
       document.getElementById('vless-server-ip').value = d.ip;
+      document.getElementById('exit-server-ip').value = d.ip;
       document.getElementById('stat-pubip').textContent = d.ip;
     }
   });
@@ -1155,43 +1149,6 @@ async function detectIP() {
   }
 }
 
-async function buildVlessLink() {
-  const serverIP = document.getElementById('vless-server-ip').value.trim();
-  const baseName = document.getElementById('vless-link-name').value || 'kuoboX';
-  const pubkey = document.getElementById('cfg-pubkey').value;
-  const sni = document.getElementById('cfg-sni').value || 'www.microsoft.com';
-  const proto = document.getElementById('cfg-in-proto').value;
-
-  if (!serverIP) { toast('請填入公網 IP', 'err'); return; }
-  if (proto === 'vless-reality' && !pubkey) {
-    await genRealityKeypair(true);
-    pubkey = document.getElementById('cfg-pubkey').value;
-    if (!pubkey) { toast('公鑰生成失敗，請確認 sing-box 已安裝', 'err'); return; }
-  }
-
-  const portData = getPortsData();
-  if (!portData.length) { toast('請先設定至少一個端口', 'err'); return; }
-
-  const links = portData.map(d => {
-    const linkName = encodeURIComponent(portData.length > 1 ? `${baseName}-${d.port}` : baseName);
-    if (proto === 'vless-reality') {
-      return `vless://${d.uuid}@${serverIP}:${d.port}?security=reality&encryption=none&pbk=${encodeURIComponent(pubkey)}&fp=chrome&sid=${d.shortid}&sni=${sni}&flow=xtls-rprx-vision&type=tcp#${linkName}`;
-    }
-    if (proto === 'trojan') {
-      return `trojan://${d.uuid}@${serverIP}:${d.port}?type=tcp#${linkName}`;
-    }
-    return `vmess://${btoa(JSON.stringify({v:'2',ps:decodeURIComponent(linkName),add:serverIP,port:String(d.port),id:d.uuid,aid:0,net:'ws',path:'/relay',tls:''}))}`;
-  });
-
-  document.getElementById('vless-link-input').value = links.join('\n');
-  toast(links.length > 1 ? `已生成 ${links.length} 個連結` : '連結已生成，點複製即可');
-}
-
-function copyVlessLink() {
-  const val = document.getElementById('vless-link-input').value;
-  if (!val) { buildVlessLink(); return; }
-  copyText(val, '已複製，貼到 v2rayN 匯入');
-}
 
 function copyOutput() {
   copyText(document.getElementById('cfg-output').value);
