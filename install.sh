@@ -154,6 +154,12 @@ systemctl enable kuobox
 systemctl restart kuobox
 log "服務啟動完成"
 
+# ── 安裝管理指令 kuobox ──────────────────────
+info "安裝管理指令 kuobox..."
+cp "$INSTALL_DIR/kuobox.sh" /usr/bin/kuobox
+chmod +x /usr/bin/kuobox
+log "管理指令安裝完成（直接輸入 kuobox 即可管理）"
+
 # ── 取得本機 IP ──────────────────────────────
 LOCAL_IP=$(hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.' | head -1)
 PUBLIC_IP=$(curl -4 -s --max-time 5 ifconfig.me 2>/dev/null || curl -s --max-time 5 ifconfig.me 2>/dev/null || echo "無法取得")
@@ -168,9 +174,7 @@ echo "  面板網址（公網）：https://${PUBLIC_IP}:${PANEL_PORT}"
 echo "  ※ 首次開啟瀏覽器會跳安全警告，點「進階」→「繼續前往」即可"
 echo "  登入密碼：${PANEL_PASSWORD}"
 echo ""
-echo "  常用指令："
-echo "    重啟面板：systemctl restart kuobox"
-echo "    查看日誌：journalctl -u kuobox -f"
-echo "    停止面板：systemctl stop kuobox"
+echo "  管理指令：kuobox"
+echo "    （啟動/停止/重啟/日誌/更新/卸載等功能）"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
