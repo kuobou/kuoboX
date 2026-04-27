@@ -345,6 +345,18 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     <!-- Config Generator -->
     <div class="section" id="section-config">
 
+      <!-- 角色選擇 -->
+      <div class="role-tabs">
+        <div class="role-tab active" id="role-relay" onclick="switchRole('relay')">
+          <div class="role-tab-title">中轉入站</div>
+          <div class="role-tab-sub">接收客戶端，轉發到落地機</div>
+        </div>
+        <div class="role-tab" id="role-exit" onclick="switchRole('exit')">
+          <div class="role-tab-title">落地入站</div>
+          <div class="role-tab-sub">接收中轉機，直接出口</div>
+        </div>
+      </div>
+
       <!-- 中轉機設定 -->
       <div id="block-relay">
         <div class="section-title">中轉入站（客戶端連線，轉發到落地機）</div>
@@ -384,8 +396,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       </div>
 
       <!-- 落地機設定 -->
-      <hr class="divider">
-      <div id="block-exit">
+      <div id="block-exit" style="display:none">
         <div class="section-title">落地入站（接收中轉機連線，直接出口）</div>
         <div class="form-grid" style="margin-bottom:10px">
           <div class="form-group">
@@ -523,6 +534,10 @@ function initDefaults() { addPort(); addExitPort(); }
 
 function switchRole(role) {
   currentRole = role;
+  document.getElementById('role-relay').classList.toggle('active', role === 'relay');
+  document.getElementById('role-exit').classList.toggle('active', role === 'exit');
+  document.getElementById('block-relay').style.display = role === 'relay' ? 'block' : 'none';
+  document.getElementById('block-exit').style.display = role === 'exit' ? 'block' : 'none';
   document.getElementById('cfg-output').value = '';
 }
 
