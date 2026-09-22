@@ -153,18 +153,23 @@ uninstall_all() {
   exit 0
 }
 
+MENU_ITEMS=(
+  '1|查看面板網址與資訊' '2|重新啟動面板' '3|啟動／停止面板' '4|面板日誌'
+  '5|重新啟動 sing-box' '6|sing-box 日誌' '7|升級 sing-box 核心'
+  '8|修改面板密碼' '9|修改面板端口' '10|開啟 BBR 加速' '11|更新面板' '12|卸載' '0|離開'
+)
+
 menu() {
   clear 2>/dev/null
-  printf '\n  %skuoboX%s  中轉管理\n\n' "$B" "$N"
-  printf '  面板      %s\n  sing-box  %s\n\n' "$(state_of kuobox)" "$(state_of sing-box)"
-  printf '  %s面板%s\n' "$D" "$N"
-  printf '   1  查看面板網址與資訊\n   2  重新啟動面板\n   3  啟動／停止面板\n   4  面板日誌\n'
-  printf '  %ssing-box%s\n' "$D" "$N"
-  printf '   5  重新啟動 sing-box\n   6  sing-box 日誌\n   7  升級 sing-box 核心\n'
-  printf '  %s設定%s\n' "$D" "$N"
-  printf '   8  修改面板密碼\n   9  修改面板端口\n  10  開啟 BBR 加速\n  11  更新面板\n'
-  printf '\n  %s12  卸載%s     0  離開\n\n' "$R" "$N"
-  read -rp '  請選擇: ' choice
+  printf '%skuoboX%s 中轉管理｜面板 %s｜sing-box %s\n' "$B" "$N" "$(state_of kuobox)" "$(state_of sing-box)"
+  local item num
+  # 每行以編號開頭、選項之間不空行；編號後補空白讓文字對齊
+  for item in "${MENU_ITEMS[@]}"; do
+    num=${item%%|*}
+    if [[ $num == 12 ]]; then printf '%-4s%s%s%s\n' "$num." "$R" "${item#*|}" "$N"
+    else printf '%-4s%s\n' "$num." "${item#*|}"; fi
+  done
+  read -rp '請選擇: ' choice
   echo
   case $choice in
     1) show_info ;; 2) restart_panel ;; 3) toggle_panel ;; 4) show_log kuobox ;;
