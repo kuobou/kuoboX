@@ -160,8 +160,7 @@ menu() {
   printf '  %s面板%s\n' "$D" "$N"
   printf '   1  查看面板網址與資訊\n   2  重新啟動面板\n   3  啟動／停止面板\n   4  面板日誌\n'
   printf '  %ssing-box%s\n' "$D" "$N"
-  printf '   5  重新啟動 sing-box\n   6  sing-box 日誌\n   7  升級 sing-box 核心\n'
-  printf '  %s設定%s\n' "$D" "$N"
+  printf '   5  重新啟動 sing-box\n   6  sing-box 日誌\n   7  升級 sing-box 核心\n
   printf '   8  修改面板密碼\n   9  修改面板端口\n  10  開啟 BBR 加速\n  11  更新面板\n'
   printf '\n  %s12  卸載%s     0  離開\n\n' "$R" "$N"
   read -rp '  請選擇: ' choice
