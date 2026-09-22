@@ -368,6 +368,16 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
     <!-- Config Generator -->
     <div class="section" id="section-config">
+      <div class="control-card">
+        <div class="section-title">已建立節點</div>
+        <p style="color:var(--muted);margin-bottom:12px">從目前正式設定讀取，重新登入後仍會保留。連結包含認證資料，請妥善保管。</p>
+        <label class="form-label" for="saved-node-host">客戶端連線地址（公網 IP／域名）</label>
+        <div class="input-group" style="margin:8px 0 16px">
+          <input class="form-input" id="saved-node-host" placeholder="你的 VPS 公網 IP 或域名">
+          <button class="btn" onclick="loadSavedNodes()">重新載入</button>
+        </div>
+        <div id="saved-node-list" aria-live="polite">尚未載入</div>
+      </div>
 
       <!-- 角色選擇 -->
       <div class="role-tabs">
@@ -613,7 +623,7 @@ function gotoTab(name) {
   document.getElementById('section-'+name).classList.add('active');
   if (name==='editor' && editorRevision === null) loadConfig();
   if (name==='rules') renderRules();
-  if (name==='config' && !configFormLoaded) loadConfigIntoForm();
+  if (name==='config') { if (!configFormLoaded) loadConfigIntoForm(); else loadSavedNodes(); }
 }
 
 function initApp() {
@@ -968,6 +978,7 @@ async function detectExitIP(silent) {
 
 
 async function loadConfigIntoForm() {
+  await loadSavedNodes();
   const d = await api('GET', '/api/config');
   if (!d || d.error) { toast(d?.error || '無法讀取設定', 'err'); return; }
   try { originalConfig = JSON.parse(d.config || '{}'); }
@@ -976,6 +987,37 @@ async function loadConfigIntoForm() {
   configFormLoaded = true;
   if (!document.getElementById('cfg-privkey').value) await genRealityKeypair(true);
   toast('已讀取設定基底；表單僅新增節點，修改既有節點請使用設定編輯器');
+}
+
+async function loadSavedNodes() {
+  const list = document.getElementById('saved-node-list');
+  const input = document.getElementById('saved-node-host');
+  if (!input.value.trim()) input.value = location.hostname.replace(/^\[|\]$/g, '');
+  list.textContent = '讀取中…';
+  const d = await api('GET', '/api/nodes?host=' + encodeURIComponent(input.value.trim()));
+  if (!d || d.error) { list.textContent = d?.error || '讀取失敗，請重新載入'; return; }
+  list.replaceChildren();
+  if (!d.nodes.length) { list.textContent = '目前尚未建立節點。'; return; }
+  for (const node of d.nodes) {
+    const card = document.createElement('div');
+    card.className = 'port-card'; card.style.cssText = 'padding:14px;margin-bottom:10px';
+    const title = document.createElement('div');
+    title.textContent = `${node.name} · ${node.type} · ${node.port || '無端口'}`;
+    title.style.marginBottom = '10px'; card.appendChild(title);
+    if (node.link) {
+      const row = document.createElement('div'); row.className = 'input-group';
+      const link = document.createElement('input'); link.className = 'form-input'; link.readOnly = true;
+      link.type = 'password'; link.value = node.link; link.setAttribute('aria-label', '節點連結');
+      const show = document.createElement('button'); show.className = 'btn sm'; show.textContent = '顯示';
+      show.onclick = () => { link.type = link.type === 'password' ? 'text' : 'password'; show.textContent = link.type === 'password' ? '顯示' : '隱藏'; };
+      const copy = document.createElement('button'); copy.className = 'btn sm primary'; copy.textContent = '複製';
+      copy.onclick = () => copyText(node.link, '已複製已儲存節點連結');
+      row.append(link, show, copy); card.appendChild(row);
+    } else {
+      const note = document.createElement('div'); note.textContent = node.error; note.style.color = 'var(--muted)'; card.appendChild(note);
+    }
+    list.appendChild(card);
+  }
 }
 
 async function generateConfig() {
@@ -1146,7 +1188,7 @@ async function applyConfig() {
   if (!config) return;
   if (!confirm('確定要套用設定並重啟 sing-box？')) return;
   const d = await api('POST','/api/config',{config, revision: formRevision});
-  if (d&&d.ok) { originalConfig=JSON.parse(config); document.getElementById('port-list').replaceChildren(); document.getElementById('exit-port-list').replaceChildren(); toast('套用成功，服務已重啟'); configFormLoaded=false; formRevision=d.revision; refreshDashboard(); }
+  if (d&&d.ok) { originalConfig=JSON.parse(config); document.getElementById('port-list').replaceChildren(); document.getElementById('exit-port-list').replaceChildren(); toast('套用成功，服務已重啟'); configFormLoaded=false; formRevision=d.revision; loadSavedNodes(); refreshDashboard(); }
   else toast(d&&d.error?d.error:'套用失敗','err');
 }
 
@@ -1162,7 +1204,7 @@ async function saveConfig() {
   if (!config.trim()) { toast('設定不得為空','err'); return; }
   if (!confirm('確定要儲存設定並重啟 sing-box？')) return;
   const d = await api('POST','/api/config',{config, revision: editorRevision});
-  if (d&&d.ok) { toast('儲存成功，服務已重啟'); editorRevision=d.revision; configFormLoaded=false; refreshDashboard(); }
+  if (d&&d.ok) { toast('儲存成功，服務已重啟'); editorRevision=d.revision; configFormLoaded=false; loadSavedNodes(); refreshDashboard(); }
   else toast(d&&d.error?d.error:'儲存失敗','err');
 }
 

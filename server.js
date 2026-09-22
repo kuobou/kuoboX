@@ -4,6 +4,7 @@ const { execFile } = require('child_process');
 const os = require('os');
 const net = require('net');
 const { createConfigStore, revision } = require('./lib/config-store');
+const { savedNodes } = require('./lib/saved-nodes');
 const { promisify } = require('util');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -180,6 +181,11 @@ app.get('/api/logs', authMiddleware, async (req, res) => {
 });
 
 // ── 讀取設定 ─────────────────────────────────────────
+app.get('/api/nodes', authMiddleware, async (req, res) => {
+  try { res.json({ nodes: savedNodes(await configStore.read(), req.query.host || req.hostname) }); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 app.get('/api/config', authMiddleware, async (req, res) => {
   try {
     const content = await configStore.read();
