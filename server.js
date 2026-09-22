@@ -11,7 +11,7 @@ const crypto = require('node:crypto');
 const { execFile } = require('node:child_process');
 const { createConfigStore, revision } = require('./lib/config-store');
 const { savedNodes, parseConfig } = require('./lib/saved-nodes');
-const { addRelay, removeInbound, parseStrict, listOutbounds } = require('./lib/relay');
+const { addRelay, removeInbound, updateRelay, relayDetail, parseStrict, listOutbounds } = require('./lib/relay');
 const { buildOutbound, describeOutbound, isHost } = require('./lib/links');
 const { setEnv } = require('./lib/env-file');
 const firewall = require('./lib/firewall');
@@ -94,7 +94,7 @@ function portAvailable(port, network) {
     s.once('error', e => { s.close(); resolve(e.code !== 'EADDRINUSE'); });
     s.bind({ port, address: '0.0.0.0', exclusive: true }, () => s.close(() => resolve(true)));
   });
-  const checks = network === 'udp' ? [udp] : network === 'tcp+udp' ? [tcp, udp] : [tcp];
+  const checks = network === 'udp' ? [udp] : network === 'tcp+udp' ? [tcp, udp] : [tcp]; // 'tcp' | 'udp' | 'tcp+udp'
   return Promise.all(checks.map(c => c())).then(r => r.every(Boolean));
 }
 
@@ -297,6 +297,41 @@ function createApp(options = {}) {
     let node = null;
     try { node = savedNodes(text, hostOf(body.host, req), readNames()).find(n => n.tag === result.tag) || null; } catch {}
     return { ok: true, revision: applied.revision, tag: result.tag, port: result.port, network: result.network, firewall: fw, node };
+  });
+
+  route('GET', '/api/nodes/detail', async (req, body, url) => {
+    const tag = String(url.searchParams.get('tag') || '');
+    const detail = relayDetail(parseStrict(await store.read()), tag);
+    const names = readNames();
+    return { ...detail, name: Object.hasOwn(names, tag) ? String(names[tag]) : detail.userName || tag };
+  });
+
+  route('POST', '/api/nodes/update', async (req, body) => {
+    const content = await store.read();
+    if (body.revision !== revision(content)) throw httpError(409, '設定已在其他地方變更，請重新整理後再試');
+    const tag = String(body.tag || '');
+    const relay = { ...(body.relay || {}) };
+    const saved = readNames();
+    if (!String(relay.name || '').trim() && Object.hasOwn(saved, tag)) relay.name = String(saved[tag]);
+    const result = updateRelay(parseStrict(content), tag, relay);
+    const text = JSON.stringify(result.config, null, 2) + '\n';
+    if (body.dryRun) return { config: text };
+    // 只檢查新占用的端口／協定；原本就由 sing-box 使用的不需檢查
+    const protos = n => (n === 'tcp+udp' ? ['tcp', 'udp'] : [n]);
+    const held = result.port === result.oldPort ? protos(result.oldNetwork) : [];
+    for (const proto of protos(result.network).filter(p => !held.includes(p))) {
+      if (!await cfg.portAvailable(result.port, proto)) throw httpError(409, `端口 ${result.port}/${proto} 已被本機其他程式佔用，請換一個端口`);
+    }
+    const applied = await store.apply(text, body.revision);
+    try { writeNames(names => ({ ...names, [tag]: result.name })); } catch (e) { console.error('無法儲存節點名稱：', e.message); }
+    let fw = { kind: null, ok: true };
+    if (result.port !== result.oldPort || result.network !== result.oldNetwork) {
+      if (result.oldPort) await firewall.closePort(run, result.oldPort, result.oldNetwork).catch(() => {});
+      fw = await firewall.openPort(run, result.port, result.network).catch(() => ({ kind: null, ok: false }));
+    }
+    let node = null;
+    try { node = savedNodes(text, hostOf(body.host, req), readNames()).find(n => n.tag === tag) || null; } catch {}
+    return { ok: true, revision: applied.revision, tag, port: result.port, network: result.network, firewall: fw, node };
   });
 
   route('POST', '/api/nodes/delete', async (req, body) => {

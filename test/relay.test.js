@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { addRelay, removeInbound, parseStrict } = require('../lib/relay');
+const { addRelay, removeInbound, updateRelay, relayDetail, parseStrict } = require('../lib/relay');
 const { savedNodes, publicKey } = require('../lib/saved-nodes');
 
 const EXIT = { mode: 'link', link: 'trojan://secret@exit.example.com:443?sni=exit.example.com#Tokyo' };
@@ -85,6 +85,89 @@ test('removing a relay drops its inbound, dedicated rule and orphaned outbound o
   const twice = { ...added, route: { ...added.route, rules: [...added.route.rules, { domain: ['b.com'], outbound: 'relay-40000-out' }] } };
   assert.ok(removeInbound(twice, 'relay-40000').config.outbounds.some(o => o.tag === 'relay-40000-out'));
   assert.throws(() => removeInbound(base, 'missing'), { status: 404 });
+});
+
+test('editing with the same protocol keeps credentials, keys and custom fields', () => {
+  const base = addRelay({}, { port: 24000, name: 'A', inbound: { type: 'vless-reality', sni: 'www.apple.com' }, exit: EXIT }).config;
+  base.inbounds[0].sniff = true; // 使用者在設定檔手動加的欄位
+  const before = base.inbounds[0];
+  const r = updateRelay(base, 'relay-24000', { name: 'B', port: 24001, inbound: { type: 'vless-reality', sni: 'www.microsoft.com', listen: '::' }, exit: { mode: 'keep' } });
+  const after = r.config.inbounds[0];
+  assert.equal(after.users[0].uuid, before.users[0].uuid);
+  assert.equal(after.users[0].name, 'B');
+  assert.equal(after.tls.reality.private_key, before.tls.reality.private_key);
+  assert.deepEqual(after.tls.reality.short_id, before.tls.reality.short_id);
+  assert.equal(after.tls.server_name, 'www.microsoft.com');
+  assert.equal(after.tls.reality.handshake.server, 'www.microsoft.com');
+  assert.equal(after.listen_port, 24001);
+  assert.equal(after.listen, '::');
+  assert.equal(after.sniff, true);
+  assert.equal(after.tag, 'relay-24000');
+  assert.deepEqual(r.config.outbounds, base.outbounds, 'keep leaves the exit untouched');
+  assert.deepEqual([r.port, r.oldPort, r.network, r.oldNetwork], [24001, 24000, 'tcp', 'tcp']);
+  assert.equal(base.inbounds[0].listen_port, 24000, 'input must not be mutated');
+});
+
+test('changing the exit replaces the managed outbound in place, or switches to an existing one', () => {
+  const base = addRelay({ outbounds: [{ type: 'direct', tag: 'direct' }], route: { rules: [{ domain: ['x.com'], outbound: 'direct' }] } }, { port: 24000, inbound: { type: 'shadowsocks' }, exit: EXIT }).config;
+  const linked = updateRelay(base, 'relay-24000', { exit: { mode: 'link', link: 'vless://id@new.example.com:8443?security=tls#N' } }).config;
+  const out = linked.outbounds.find(o => o.tag === 'relay-24000-out');
+  assert.equal(out.type, 'vless');
+  assert.equal(out.server, 'new.example.com');
+  assert.equal(linked.outbounds.length, 2);
+  assert.deepEqual(linked.route.rules, base.route.rules, 'rule order unchanged');
+
+  const existing = updateRelay(linked, 'relay-24000', { exit: { mode: 'existing', tag: 'direct' } }).config;
+  assert.equal(existing.route.rules[0].outbound, 'direct');
+  assert.ok(!existing.outbounds.some(o => o.tag === 'relay-24000-out'), 'orphaned managed outbound removed');
+
+  const back = updateRelay(existing, 'relay-24000', { exit: { mode: 'manual', protocol: 'trojan', server: '1.2.3.4', port: 443, credential: 'pw', security: 'tls' } }).config;
+  assert.equal(back.route.rules[0].outbound, 'relay-24000-out');
+  assert.equal(back.outbounds.find(o => o.tag === 'relay-24000-out').server, '1.2.3.4');
+  assert.ok(back.outbounds.some(o => o.tag === 'direct'), 'user outbounds are never removed');
+});
+
+test('protocol change, method change and regenerate create new credentials', () => {
+  const base = addRelay({}, { port: 24000, inbound: { type: 'shadowsocks', method: 'aes-256-gcm' }, exit: EXIT }).config;
+  const pw = base.inbounds[0].password;
+  const method = updateRelay(base, 'relay-24000', { inbound: { type: 'shadowsocks', method: '2022-blake3-aes-256-gcm' } }).config.inbounds[0];
+  assert.equal(method.method, '2022-blake3-aes-256-gcm');
+  assert.equal(Buffer.from(method.password, 'base64').length, 32);
+  const same = updateRelay(base, 'relay-24000', { inbound: { type: 'shadowsocks', method: 'aes-256-gcm' } }).config.inbounds[0];
+  assert.equal(same.password, pw);
+  const regen = updateRelay(base, 'relay-24000', { regenerate: true, inbound: { type: 'shadowsocks', method: 'aes-256-gcm' } }).config.inbounds[0];
+  assert.notEqual(regen.password, pw);
+  const hy = updateRelay(base, 'relay-24000', { inbound: { type: 'hysteria2', certificate_path: '/c.pem', key_path: '/k.pem' } });
+  assert.equal(hy.config.inbounds[0].type, 'hysteria2');
+  assert.equal(hy.config.inbounds[0].tag, 'relay-24000');
+  assert.deepEqual([hy.network, hy.oldNetwork], ['udp', 'tcp+udp']);
+  assert.throws(() => updateRelay(base, 'relay-24000', { inbound: { type: 'trojan' } }), /憑證/);
+});
+
+test('edit validation: port conflicts, missing nodes, custom inbounds and shared rules', () => {
+  const base = addRelay({ inbounds: [{ type: 'mixed', tag: 'm', listen_port: 1080 }] }, { port: 24000, inbound: { type: 'vmess-ws', path: '/a' }, exit: EXIT }).config;
+  assert.throws(() => updateRelay(base, 'relay-24000', { port: 1080 }), { status: 409 });
+  assert.throws(() => updateRelay(base, 'nope', {}), { status: 404 });
+  assert.equal(updateRelay(base, 'relay-24000', { inbound: { type: 'vmess-ws', path: '' } }).config.inbounds[1].transport.path, '/a', 'empty path keeps the old one');
+
+  // 自訂入站（精靈無法辨識）只改端口與落地機，其餘原樣保留
+  const custom = { inbounds: [{ type: 'vless', tag: 'c', listen: '127.0.0.1', listen_port: 5000, users: [{ uuid: 'u' }], transport: { type: 'grpc', service_name: 's' } }], outbounds: [{ type: 'direct', tag: 'direct' }], route: { rules: [{ inbound: ['c', 'other'], outbound: 'direct' }] } };
+  assert.equal(relayDetail(custom, 'c').kind, 'other');
+  const edited = updateRelay(custom, 'c', { port: 5001, exit: EXIT }).config;
+  assert.deepEqual(edited.inbounds[0], { ...custom.inbounds[0], listen_port: 5001, users: [{ uuid: 'u', name: 'c' }] });
+  assert.deepEqual(edited.route.rules, [{ inbound: ['c'], outbound: 'c-out' }, { inbound: ['other'], outbound: 'direct' }], 'shared rule split, other inbound unaffected');
+});
+
+test('detail exposes form fields but never private keys or passwords', () => {
+  const base = addRelay({}, { port: 24000, name: 'A', inbound: { type: 'vless-reality', sni: 'www.apple.com' }, exit: { mode: 'link', link: 'ss://' + Buffer.from('aes-256-gcm:exitpw').toString('base64url') + '@e.example.com:8388' } }).config;
+  const d = relayDetail(base, 'relay-24000');
+  assert.equal(d.kind, 'vless-reality');
+  assert.equal(d.sni, 'www.apple.com');
+  assert.equal(d.userName, 'A');
+  assert.deepEqual([d.exit.server, d.exit.port, d.exit.managed, d.exit.manual.method], ['e.example.com', 8388, true, 'aes-256-gcm']);
+  assert.ok(!JSON.stringify(d).includes(base.inbounds[0].tls.reality.private_key));
+  assert.ok(!JSON.stringify(d).includes(base.inbounds[0].users[0].uuid));
+  assert.throws(() => relayDetail({ inbounds: [{ tag: 'x', listen_port: 1 }] }, 'x'), { status: 422 });
 });
 
 test('strict parsing refuses commented configs so comments are never lost', () => {

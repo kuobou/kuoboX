@@ -455,6 +455,9 @@
         el('button', { class: 'icon-btn', title: '複製連結', 'aria-label': '複製連結', onclick: () => copy(n.link, `已複製「${n.name}」連結`) }, icon('i-copy')),
         el('button', { class: 'icon-btn', title: 'QR Code', 'aria-label': 'QR Code', onclick: () => showQR(n.name, n.link) }, icon('i-qr')));
     }
+    if (state.editable && n.tag && n.target && !n.multi) {
+      actions.append(el('button', { class: 'icon-btn', title: '編輯', 'aria-label': '編輯', onclick: e => withBusy(e.currentTarget, () => openWizard(n)) }, icon('i-edit')));
+    }
     if (state.editable && n.tag) {
       actions.append(el('button', { class: 'icon-btn danger', title: '刪除', 'aria-label': '刪除', onclick: e => deleteNode(n, e.currentTarget) }, icon('i-trash')));
     }
@@ -499,8 +502,11 @@
     $('#qr-modal').hidden = false;
   }
 
-  // ── 新增中轉精靈 ────────────────────────────────────
-  const wz = { step: 1, mode: 'link', parsed: null, parseSeq: 0, parseTimer: null, inType: 'vless-reality', result: null, previewSeq: 0 };
+  // ── 新增／編輯中轉精靈 ─────────────────────────────
+  // wz.edit：編輯中的節點目前設定（null 代表新增）
+  const wz = { step: 1, mode: 'link', parsed: null, parseSeq: 0, parseTimer: null, inType: 'vless-reality', result: null, previewSeq: 0, edit: null };
+  const STANDARD_LISTEN = ['', '0.0.0.0', '::'];
+  const TYPE_LABEL = { 'vless-reality': 'VLESS + REALITY', shadowsocks: 'Shadowsocks', hysteria2: 'Hysteria2', 'vmess-ws': 'VMess + WebSocket', trojan: 'Trojan' };
 
   function radioValue(groupId) {
     const on = $(`#${groupId} [aria-checked="true"]`);
@@ -510,32 +516,87 @@
     $$(`#${groupId} [role="radio"]`).forEach(b => b.setAttribute('aria-checked', String(b.dataset.value === value)));
   }
 
-  async function openWizard() {
+  function selectValue(sel, value) {
+    const has = [...sel.options].some(o => o.value === value);
+    if (has) sel.value = value;
+    return has;
+  }
+
+  async function openWizard(node) {
     if (!state.nodesLoaded) await loadNodes(true);
     if (!state.nodesLoaded) { toast('無法讀取目前設定', 'err'); return; }
-    if (!state.editable) { toast('設定檔含註解，請在「設定檔」頁面手動新增', 'err'); return; }
-    Object.assign(wz, { step: 1, parsed: null, result: null });
+    if (!state.editable) { toast('設定檔含註解，請在「設定檔」頁面修改', 'err'); return; }
+    let detail = null;
+    if (node) {
+      try { detail = await api('GET', '/api/nodes/detail?tag=' + encodeURIComponent(node.tag)); }
+      catch (e) { toast(e.message, 'err'); return; }
+      detail.link = node.link; // 用來判斷儲存後連結是否改變
+    }
+    Object.assign(wz, { step: 1, parsed: null, result: null, edit: detail });
+
+    // 重設所有欄位
     $('#exit-link').value = '';
     $$('#wizard .exit-pane input, #wizard .exit-pane textarea').forEach(i => { if (i.type === 'checkbox') i.checked = false; else i.value = ''; });
+    $('#m-protocol').value = 'vless'; $('#m-security').value = 'none'; $('#m-network').value = 'tcp'; $('#m-method').value = 'aes-256-gcm';
     $('#in-name').value = '';
     $('#in-name').placeholder = '例如 香港-01';
-    $('#in-port').value = '';
-    $('#in-path').value = '';
+    ['#in-port', '#in-path', '#in-tls-sni', '#in-cert', '#in-key', '#in-sni-custom'].forEach(s => { $(s).value = ''; });
+    $('#in-sni').value = 'www.apple.com';
+    $('#in-method').value = '2022-blake3-aes-128-gcm';
     $('#in-v6').checked = false;
+    $('#in-regen').checked = false;
     $('#preview-wrap').open = false;
     $('#wz-test-result').textContent = '';
-    setMode('link');
-    setRadio('in-type', 'vless-reality');
-    wz.inType = 'vless-reality';
-    syncInbound();
-    syncManual();
+    $$('#in-type [role="radio"]').forEach(b => { b.disabled = false; });
+
     const sel = $('#exit-existing');
     sel.replaceChildren(...state.outbounds.map(o => el('option', { value: o.tag, text: `${o.tag}（${o.type}${o.server ? ' · ' + o.server + ':' + o.port : ''}）` })));
     if (!state.outbounds.length) sel.append(el('option', { value: '', text: '設定中沒有可用的出站' }));
+
+    $('#exit-mode [data-value="keep"]').hidden = !detail;
+    $('#in-regen-wrap').hidden = !detail;
+    wz.inType = 'vless-reality';
+    if (detail) {
+      // 預填目前設定
+      const m = detail.exit.manual;
+      if (m) {
+        selectValue($('#m-protocol'), m.protocol);
+        ['server', 'port', 'credential', 'sni', 'path', 'host', 'pbk', 'sid'].forEach(k => { $('#m-' + (k === 'credential' ? 'cred' : k)).value = m[k] ?? ''; });
+        selectValue($('#m-method'), m.method);
+        selectValue($('#m-security'), m.security);
+        selectValue($('#m-network'), m.network);
+        $('#m-flow').checked = m.flow;
+        $('#m-insecure').checked = m.insecure;
+        $('#m-security').dataset.proto = m.protocol;
+      }
+      selectValue(sel, detail.exit.tag);
+      $('#in-name').value = detail.name;
+      $('#in-port').value = detail.port || '';
+      $('#in-v6').checked = detail.listen === '::';
+      $('#in-v6-wrap').hidden = !STANDARD_LISTEN.includes(detail.listen);
+      if (detail.kind === 'other') {
+        wz.inType = '';
+        $$('#in-type [role="radio"]').forEach(b => { b.disabled = true; });
+      } else {
+        wz.inType = detail.kind;
+        if (detail.kind === 'vless-reality' && !selectValue($('#in-sni'), detail.sni)) { $('#in-sni').value = '__custom'; $('#in-sni-custom').value = detail.sni; }
+        if (detail.kind === 'shadowsocks') selectValue($('#in-method'), detail.method);
+        if (detail.kind === 'vmess-ws') $('#in-path').value = detail.path;
+        if (detail.kind === 'trojan' || detail.kind === 'hysteria2') {
+          $('#in-tls-sni').value = detail.sni;
+          $('#in-cert').value = detail.certificate_path;
+          $('#in-key').value = detail.key_path;
+        }
+      }
+    } else $('#in-v6-wrap').hidden = false;
+    setRadio('in-type', wz.inType);
+    setMode(detail ? 'keep' : 'link');
+    syncInbound();
+    syncManual();
     renderParsed();
     $('#wizard').hidden = false;
     setStep(1);
-    setTimeout(() => $('#exit-link').focus(), 50);
+    if (!detail) setTimeout(() => $('#exit-link').focus(), 50);
   }
 
   function closeWizard() {
@@ -548,10 +609,10 @@
     $$('#wizard .wz-step').forEach(s => { s.hidden = Number(s.dataset.step) !== step; });
     $$('#wz-steps i').forEach((d, i) => d.classList.toggle('on', i === step - 1));
     $('#wz-back').hidden = step !== 2;
-    $('#wz-title').textContent = step === 3 ? '完成' : '新增中轉';
+    $('#wz-title').textContent = step === 3 ? '完成' : wz.edit ? '編輯中轉' : '新增中轉';
     const next = $('#wz-next');
-    next.textContent = step === 1 ? '下一步' : step === 2 ? '建立中轉' : '完成';
-    $('#wz-hint').textContent = step === 2 ? '建立後會重新啟動 sing-box（約 2 秒）' : '';
+    next.textContent = step === 1 ? '下一步' : step === 2 ? (wz.edit ? '儲存變更' : '建立中轉') : '完成';
+    $('#wz-hint').textContent = step === 2 ? `${wz.edit ? '儲存' : '建立'}後會重新啟動 sing-box（約 2 秒）` : '';
     $('.sheet-body').scrollTop = 0;
     updateNext();
   }
@@ -559,7 +620,7 @@
   function updateNext() {
     const next = $('#wz-next');
     if (wz.step === 1) {
-      next.disabled = wz.mode === 'link' ? !(wz.parsed && wz.parsed.ok) : wz.mode === 'existing' ? !$('#exit-existing').value : false;
+      next.disabled = wz.mode === 'link' ? !(wz.parsed && wz.parsed.ok) : wz.mode === 'existing' ? !$('#exit-existing').value : false; // keep／manual 永遠可按
     } else next.disabled = false;
   }
 
@@ -574,6 +635,7 @@
   }
 
   function exitSpec() {
+    if (wz.mode === 'keep') return { mode: 'keep' };
     if (wz.mode === 'link') return { mode: 'link', link: $('#exit-link').value.trim() };
     if (wz.mode === 'existing') return { mode: 'existing', tag: $('#exit-existing').value };
     return {
@@ -603,6 +665,15 @@
 
   function renderParsed() {
     const box = $('#exit-parsed');
+    if (wz.mode === 'keep' && wz.edit) {
+      const x = wz.edit.exit;
+      box.hidden = false;
+      box.className = 'parsed';
+      box.replaceChildren(icon('i-check'), el('div', {},
+        el('b', { text: `目前落地機 · ${x.summary || x.type || x.tag}` }),
+        el('span', { class: 'mono', text: x.server ? `${x.server}:${x.port}` : `出站 ${x.tag}` })));
+      return;
+    }
     const p = wz.parsed;
     if (!p) { box.hidden = true; return; }
     box.hidden = false;
@@ -647,11 +718,21 @@
     const type = wz.inType;
     $$('#wizard [data-in]').forEach(n => { n.hidden = !n.dataset.in.split(' ').includes(type); });
     $('#in-sni-custom-wrap').hidden = type !== 'vless-reality' || $('#in-sni').value !== '__custom';
+    const note = $('#in-type-note');
+    const e = wz.edit;
+    note.textContent = !e ? ''
+      : e.kind === 'other' ? '此入口是自訂設定，這裡只能修改名稱、端口與落地機；其他欄位請到「設定檔」頁面修改。'
+      : type !== e.kind ? `從 ${TYPE_LABEL[e.kind]} 改為 ${TYPE_LABEL[type]} 會產生新的連結，客戶端需要重新匯入。`
+      : '';
+    note.hidden = !note.textContent;
   }
 
   function relaySpec() {
     const type = wz.inType;
-    const inbound = { type, listen: $('#in-v6').checked ? '::' : '0.0.0.0' };
+    const inbound = {};
+    if (type) inbound.type = type;
+    // 自訂的監聽地址（例如 127.0.0.1）在編輯時保持不變
+    if (!wz.edit || STANDARD_LISTEN.includes(wz.edit.listen)) inbound.listen = $('#in-v6').checked ? '::' : '0.0.0.0';
     if (type === 'vless-reality') inbound.sni = $('#in-sni').value === '__custom' ? $('#in-sni-custom').value.trim() : $('#in-sni').value;
     if (type === 'shadowsocks') inbound.method = $('#in-method').value;
     if (type === 'vmess-ws') inbound.path = $('#in-path').value.trim();
@@ -661,8 +742,17 @@
       inbound.key_path = $('#in-key').value.trim();
     }
     const port = $('#in-port').value.trim();
-    // 名稱留空時由伺服器沿用落地機連結的名稱
-    return { name: $('#in-name').value.trim(), port: port || null, inbound, exit: exitSpec() };
+    // 名稱留空時由伺服器沿用落地機連結的名稱（編輯時沿用原名稱）
+    const spec = { name: $('#in-name').value.trim(), port: port || null, inbound, exit: exitSpec() };
+    if (wz.edit) spec.regenerate = $('#in-regen').checked;
+    return spec;
+  }
+
+  // 新增與編輯共用：回傳 API 路徑與請求內容
+  function relayRequest(extra) {
+    return wz.edit
+      ? ['/api/nodes/update', { tag: wz.edit.tag, relay: relaySpec(), revision: state.revision, host: state.host, ...extra }]
+      : ['/api/nodes', { relay: relaySpec(), revision: state.revision, host: state.host, ...extra }];
   }
 
   async function wizardNext(btn) {
@@ -685,7 +775,8 @@
     if (wz.step === 2) {
       await withBusy(btn, async () => {
         try {
-          const d = await api('POST', '/api/nodes', { relay: relaySpec(), revision: state.revision, host: state.host }, 120000);
+          const [path, body] = relayRequest();
+          const d = await api('POST', path, body, 120000);
           state.revision = d.revision;
           wz.result = d;
           invalidateEditor();
@@ -693,7 +784,7 @@
           setStep(3);
         } catch (e) {
           if (e.status === 409 && /變更/.test(e.message)) await loadNodes(true);
-          await inform('無法建立中轉', e.message);
+          await inform(wz.edit ? '無法儲存變更' : '無法建立中轉', e.message);
         }
       });
       return;
@@ -704,6 +795,7 @@
   function renderDone(d) {
     const n = d.node;
     const protoText = d.network === 'tcp+udp' ? 'TCP 與 UDP' : d.network.toUpperCase();
+    $('#done-title').textContent = wz.edit ? '中轉已更新' : '中轉已上線';
     $('#done-sub').textContent = n ? `${n.name} · ${n.entry} · 端口 ${d.port}` : `端口 ${d.port}`;
     $('#done-link').value = n?.link || '';
     const canvas = $('#done-qr');
@@ -712,9 +804,17 @@
     const fw = d.firewall || {};
     const box = $('#done-fw');
     const cloud = `若 VPS 供應商有安全組／防火牆（例如 AWS、GCP、Oracle、阿里雲），請在後台開放 ${protoText} ${d.port}。`;
-    if (fw.kind && fw.ok) { box.className = 'banner ok'; box.textContent = `已自動在 ${fw.kind} 放行 ${protoText} ${d.port}。${cloud}`; }
+    const samePort = wz.edit && d.port === wz.edit.port && d.network === wz.edit.network;
+    if (samePort) { box.className = 'banner ok'; box.textContent = ''; }
+    else if (fw.kind && fw.ok) { box.className = 'banner ok'; box.textContent = `已自動在 ${fw.kind} 放行 ${protoText} ${d.port}。${cloud}`; }
     else if (fw.kind) { box.className = 'banner warn'; box.textContent = `自動放行 ${fw.kind} 失敗，請手動開放 ${protoText} ${d.port}。${cloud}`; }
     else { box.className = 'banner'; box.textContent = cloud; }
+    if (wz.edit) {
+      const changed = !!n?.link && n.link !== wz.edit.link;
+      const msg = changed ? '連結已變更，客戶端需要重新匯入。' : '客戶端連結沒有變，不需要重新匯入。';
+      box.textContent = msg + (box.textContent ? ' ' + box.textContent : '');
+      if (changed && samePort) box.className = 'banner warn';
+    }
     if (!n?.link && n?.error) { box.className = 'banner warn'; box.textContent = n.error + '。' + box.textContent; }
   }
 
@@ -723,7 +823,8 @@
     const seq = ++wz.previewSeq;
     code.textContent = '產生中…';
     try {
-      const d = await api('POST', '/api/nodes', { relay: relaySpec(), revision: state.revision, dryRun: true });
+      const [path, body] = relayRequest({ dryRun: true });
+      const d = await api('POST', path, body);
       if (seq === wz.previewSeq) code.textContent = d.config;
     } catch (e) { if (seq === wz.previewSeq) code.textContent = e.message; }
   }
@@ -731,7 +832,10 @@
   async function testExit(btn) {
     const out = $('#wz-test-result');
     let target = null;
-    if (wz.mode === 'existing') {
+    if (wz.mode === 'keep') {
+      const x = wz.edit.exit;
+      if (x.server) target = { server: x.server, port: x.port, type: x.type };
+    } else if (wz.mode === 'existing') {
       const o = state.outbounds.find(x => x.tag === $('#exit-existing').value);
       if (o && o.server) target = { server: o.server, port: o.port, type: o.type };
     } else {

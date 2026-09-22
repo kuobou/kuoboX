@@ -80,6 +80,27 @@ test('relay wizard end-to-end: preview, create, list, delete', async t => {
   assert.equal(dup.status, 409);
   assert.match(dup.data.error, /25000/);
 
+  // 編輯：同協定改名稱與端口，UUID 保留
+  const detail = await s.call('GET', '/api/nodes/detail?tag=relay-25000');
+  assert.equal(detail.data.name, '香港');
+  assert.equal(detail.data.kind, 'vless-reality');
+  const oldLink = new URL(created.data.node.link);
+  const edit = await s.call('POST', '/api/nodes/update', { tag: 'relay-25000', relay: { name: '香港-改', port: 25010, inbound: { type: 'vless-reality', sni: 'www.apple.com', listen: '0.0.0.0' }, exit: { mode: 'keep' } }, revision: nodes.data.revision, host: '203.0.113.7' });
+  assert.equal(edit.status, 200, JSON.stringify(edit.data));
+  const newLink = new URL(edit.data.node.link);
+  assert.equal(newLink.username, oldLink.username, 'UUID unchanged');
+  assert.equal(newLink.searchParams.get('pbk'), oldLink.searchParams.get('pbk'), 'REALITY key unchanged');
+  assert.equal(newLink.port, '25010');
+  assert.equal(edit.data.node.name, '香港-改');
+  const staleEdit = await s.call('POST', '/api/nodes/update', { tag: 'relay-25000', relay: {}, revision: nodes.data.revision });
+  assert.equal(staleEdit.status, 409);
+  nodes = await s.call('GET', '/api/nodes?host=203.0.113.7');
+  const editPreview = await s.call('POST', '/api/nodes/update', { tag: 'relay-25000', relay: { port: 25000, exit: { mode: 'keep' } }, revision: nodes.data.revision, dryRun: true });
+  assert.equal(JSON.parse(editPreview.data.config).inbounds[0].listen_port, 25000);
+  const revert = await s.call('POST', '/api/nodes/update', { tag: 'relay-25000', relay: { name: '香港', port: 25000, exit: { mode: 'keep' } }, revision: nodes.data.revision, host: '203.0.113.7' });
+  assert.equal(revert.status, 200);
+  nodes = await s.call('GET', '/api/nodes?host=203.0.113.7');
+
   // Shadowsocks 入站沒有 users[].name，名稱需由面板保存
   const ss = await s.call('POST', '/api/nodes', { relay: { ...relay, name: '', port: 25002, inbound: { type: 'shadowsocks' } }, revision: nodes.data.revision, host: '203.0.113.7' });
   assert.equal(ss.data.node.name, 'E');

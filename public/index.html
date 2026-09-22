@@ -27,6 +27,7 @@
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="9" r="1.4" fill="currentColor"/><circle cx="15" cy="15" r="1.4" fill="currentColor"/><circle cx="15" cy="9" r="1.4" fill="currentColor"/><circle cx="9" cy="15" r="1.4" fill="currentColor"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4.5 19.5h4l10-10a2.8 2.8 0 0 0-4-4l-10 10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m13.5 6.5 4 4" stroke="currentColor" stroke-width="2"/></symbol>
   <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 13.5h6L10.5 21 19 10.5h-6z" fill="currentColor"/></symbol>
 </svg>
 
@@ -236,6 +237,7 @@
         <h3 class="step-title">落地機在哪裡？</h3>
         <p class="step-sub">貼上落地機的分享連結最快；也可以手動填寫，或使用設定中已有的出站。</p>
         <div class="segmented segmented-full" id="exit-mode" role="radiogroup" aria-label="落地機來源">
+          <button role="radio" data-value="keep" aria-checked="false" hidden>保持不變</button>
           <button role="radio" data-value="link" aria-checked="true">貼上連結</button>
           <button role="radio" data-value="manual" aria-checked="false">手動填寫</button>
           <button role="radio" data-value="existing" aria-checked="false">現有出站</button>
@@ -301,6 +303,7 @@
           <button role="radio" aria-checked="false" data-value="vmess-ws"><b>VMess + WebSocket</b><span>可再套 CDN／反向代理</span><em>TCP</em></button>
           <button role="radio" aria-checked="false" data-value="trojan"><b>Trojan</b><span>標準 TLS，需要憑證</span><em>TCP</em></button>
         </div>
+        <p class="hint hint-warn" id="in-type-note" hidden></p>
 
         <div class="form-grid">
           <label class="fld"><span>入口端口</span>
@@ -330,7 +333,8 @@
 
         <details class="disclosure">
           <summary>進階選項</summary>
-          <label class="check"><input type="checkbox" id="in-v6"> 同時監聽 IPv6（雙棧 <code>::</code>）</label>
+          <label class="check" id="in-v6-wrap"><input type="checkbox" id="in-v6"> 同時監聽 IPv6（雙棧 <code>::</code>）</label>
+          <label class="check" id="in-regen-wrap" hidden><input type="checkbox" id="in-regen"> 重新產生 UUID／密碼／金鑰（舊連結會失效）</label>
         </details>
 
         <details class="disclosure" id="preview-wrap">
@@ -343,7 +347,7 @@
       <div class="wz-step" data-step="3" hidden>
         <div class="done">
           <div class="done-icon"><svg><use href="#i-check"/></svg></div>
-          <h3>中轉已上線</h3>
+          <h3 id="done-title">中轉已上線</h3>
           <p class="muted" id="done-sub"></p>
         </div>
         <div class="qr-wrap"><canvas id="done-qr" class="qr" aria-label="節點 QR Code"></canvas></div>

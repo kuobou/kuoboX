@@ -117,7 +117,16 @@ run_installer() {
   echo "  下載安裝程式…"
   if curl -fLsS --retry 3 --connect-timeout 15 --max-time 120 --proto '=https' "$url" -o "$dir/install.sh" \
      || curl -fLsS --retry 2 --connect-timeout 15 --max-time 120 --proto '=https' "https://cdn.jsdelivr.net/gh/$repo@$ref/install.sh" -o "$dir/install.sh"; then
-    bash "$dir/install.sh" "$1" || err '未完成，請查看上方訊息（現有服務已保留）'
+    if bash "$dir/install.sh" "$1"; then
+      rm -rf -- "$dir"
+      # bash 會繼續執行已載入的舊腳本，所以更新後要重新啟動選單才會用到新版
+      if [[ -n ${IN_MENU:-} && $1 == update ]]; then
+        read -rp '  按 Enter 載入新版選單…' _
+        if [[ -x /usr/local/bin/kuobox ]]; then exec /usr/local/bin/kuobox; else exec bash "$0"; fi
+      fi
+      return 0
+    fi
+    err '未完成，請查看上方訊息（現有服務已保留）'
   else err '無法下載安裝程式，現有服務未變更'; fi
   rm -rf -- "$dir"
 }
@@ -148,25 +157,13 @@ menu() {
   clear 2>/dev/null
   printf '\n  %skuoboX%s  中轉管理\n\n' "$B" "$N"
   printf '  面板      %s\n  sing-box  %s\n\n' "$(state_of kuobox)" "$(state_of sing-box)"
-  
   printf '  %s面板%s\n' "$D" "$N"
-  printf '  %2d  %s\n' 1  '查看面板網址與資訊'
-  printf '  %2d  %s\n' 2  '重新啟動面板'
-  printf '  %2d  %s\n' 3  '啟動／停止面板'
-  printf '  %2d  %s\n' 4  '面板日誌'
-  
+  printf '   1  查看面板網址與資訊\n   2  重新啟動面板\n   3  啟動／停止面板\n   4  面板日誌\n'
   printf '  %ssing-box%s\n' "$D" "$N"
-  printf '  %2d  %s\n' 5  '重新啟動'
-  printf '  %2d  %s\n' 6  '日誌'
-  printf '  %2d  %s\n' 7  '升級核心'
-  
+  printf '   5  重新啟動 sing-box\n   6  sing-box 日誌\n   7  升級 sing-box 核心\n'
   printf '  %s設定%s\n' "$D" "$N"
-  printf '  %2d  %s\n' 8  '修改面板密碼'
-  printf '  %2d  %s\n' 9  '修改面板端口'
-  printf '  %2d  %s\n' 10 '開啟 BBR 加速'
-  printf '  %2d  %s\n' 11 '更新面板'
-  
-  printf '\n  %s%2d  卸載%s      %2d  離開\n\n' "$R" 12 "$N" 0
+  printf '   8  修改面板密碼\n   9  修改面板端口\n  10  開啟 BBR 加速\n  11  更新面板\n'
+  printf '\n  %s12  卸載%s     0  離開\n\n' "$R" "$N"
   read -rp '  請選擇: ' choice
   echo
   case $choice in
@@ -181,7 +178,7 @@ menu() {
 }
 
 case ${1:-} in
-  '') while true; do menu; done ;;
+  '') IN_MENU=1; while true; do menu; done ;;
   info) show_info ;;
   restart) restart_panel ;;
   log) journalctl -u kuobox -n 80 --no-pager ;;
