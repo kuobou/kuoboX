@@ -66,7 +66,7 @@ show_log() {
 
 change_password() {
   local pw pw2
-  read -rsp '新的面板密碼（至少 12 字元，直接 Enter 產生隨機密碼）: ' pw; echo
+  read -rsp '新的面板密碼（直接 Enter 產生隨機密碼）: ' pw; echo
   if [[ -z $pw ]]; then
     pw=$(openssl rand -base64 18 | tr -d '/+=' | cut -c1-20)
   else

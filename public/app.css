@@ -48,6 +48,8 @@ button { cursor: pointer; }
 a { color: var(--blue); text-decoration: none; }
 code { font-family: var(--mono); font-size: .88em; background: var(--fill); padding: 2px 6px; border-radius: 6px; }
 svg { width: 100%; height: 100%; display: block; }
+/* 圖示庫本身不可有尺寸，否則會蓋住整個頁面並吃掉所有點擊 */
+svg.sprite { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
 :focus-visible { outline: 3px solid rgba(0, 113, 227, .35); outline-offset: 2px; }
 .muted { color: var(--text-2); }
 .small { font-size: 13px; }

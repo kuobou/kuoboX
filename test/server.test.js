@@ -117,9 +117,10 @@ test('link parsing, input validation and password change', async t => {
   assert.equal((await s.call('POST', '/api/test', { host: '-evil' })).status, 400);
   assert.equal((await s.call('POST', '/api/test', { host: 'a.example', port: 99999 })).status, 400);
   assert.equal((await s.call('POST', '/api/service', { action: 'reboot' })).status, 400);
-  assert.equal((await s.call('POST', '/api/password', { password: 'short' })).status, 400);
-  assert.equal((await s.call('POST', '/api/password', { password: 'a-much-longer-password' })).status, 200);
-  assert.match(await fs.readFile(path.join(s.dir, '.env'), 'utf8'), /^PANEL_PASSWORD="a-much-longer-password"$/m);
+  assert.equal((await s.call('POST', '/api/password', { password: '' })).status, 400);
+  assert.equal((await s.call('POST', '/api/password', { password: 'a\nb' })).status, 400);
+  assert.equal((await s.call('POST', '/api/password', { password: '1234' })).status, 200, 'short passwords are allowed');
+  assert.match(await fs.readFile(path.join(s.dir, '.env'), 'utf8'), /^PANEL_PASSWORD="1234"$/m);
   assert.equal((await s.call('GET', '/api/config')).status, 401, 'sessions revoked');
   const res = await fetch(s.base + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{bad json' });
   assert.equal(res.status, 400);

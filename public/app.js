@@ -890,7 +890,7 @@
   $('#pw-form').addEventListener('submit', async e => {
     e.preventDefault();
     const pw = $('#pw-new').value, again = $('#pw-confirm').value;
-    if (pw.length < 12) { toast('密碼至少需要 12 個字元', 'err'); return; }
+    if (!pw) { toast('請輸入新密碼', 'err'); return; }
     if (pw !== again) { toast('兩次輸入的密碼不一致', 'err'); return; }
     await withBusy(e.submitter, async () => {
       try {

@@ -108,7 +108,7 @@ function createApp(options = {}) {
     publicDir: options.publicDir || path.join(__dirname, 'public'),
     portAvailable: options.portAvailable || portAvailable,
   };
-  if (!cfg.password || cfg.password === 'changeme123') throw new Error('請先設定非預設 PANEL_PASSWORD');
+  if (!cfg.password) throw new Error('請先在 .env 設定 PANEL_PASSWORD');
   const store = createConfigStore(cfg.configPath, run, options.settle);
   const statics = loadStatic(cfg.publicDir);
   const sessions = new Map();

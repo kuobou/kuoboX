@@ -33,7 +33,7 @@ wget -qO install.sh https://raw.githubusercontent.com/kuobou/kuobox_test/main/in
 
 ```bash
 sudo env PANEL_PORT=8443 bash install.sh              # 指定面板端口（預設 3000）
-sudo env PANEL_PASSWORD='你的密碼' bash install.sh     # 指定密碼（至少 12 字元）
+sudo env PANEL_PASSWORD='你的密碼' bash install.sh     # 指定密碼（預設隨機產生）
 sudo env SINGBOX_VERSION=1.12.12 bash install.sh      # 指定 sing-box 版本
 ```
 

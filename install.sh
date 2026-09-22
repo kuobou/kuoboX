@@ -269,7 +269,7 @@ if [[ ! -f $INSTALL_DIR/.env ]]; then
   PANEL_PORT=${PANEL_PORT:-3000}
   [[ $PANEL_PORT =~ ^[0-9]{1,5}$ ]] && (( 10#$PANEL_PORT >= 1 && 10#$PANEL_PORT <= 65535 )) || die 'PANEL_PORT 必須為 1–65535'
   PANEL_PASSWORD=${PANEL_PASSWORD:-$(openssl rand -base64 18 | tr -d '/+=' | cut -c1-20)}
-  [[ ${#PANEL_PASSWORD} -ge 12 && $PANEL_PASSWORD != *$'\n'* ]] || die '密碼至少 12 字元且不得含換行'
+  [[ -n $PANEL_PASSWORD && $PANEL_PASSWORD != *$'\n'* && $PANEL_PASSWORD != *$'\r'* ]] || die '密碼不得為空或含換行'
   umask 077
   printf 'PANEL_PORT=%s\nSINGBOX_CONFIG=%s\n' "$((10#$PANEL_PORT))" "$SB_CONFIG" > "$INSTALL_DIR/.env"
   PANEL_PASSWORD=$PANEL_PASSWORD "$NODE_BIN" -e 'process.stdout.write("PANEL_PASSWORD="+JSON.stringify(process.env.PANEL_PASSWORD)+"\n")' >> "$INSTALL_DIR/.env"
@@ -277,7 +277,6 @@ if [[ ! -f $INSTALL_DIR/.env ]]; then
   NEW_PASSWORD=$PANEL_PASSWORD
 fi
 chmod 600 "$INSTALL_DIR/.env"
-grep -Eq '^PANEL_PASSWORD="?changeme123"?$' "$INSTALL_DIR/.env" && die '仍在使用預設密碼，請先執行 kuobox 修改密碼'
 PANEL_PORT=$(grep -E '^PANEL_PORT=' "$INSTALL_DIR/.env" | tail -n1 | cut -d= -f2)
 PANEL_PORT=${PANEL_PORT:-3000}
 
