@@ -161,7 +161,7 @@ MENU_ITEMS=(
 
 menu() {
   clear 2>/dev/null
-  printf '%skuoboX%s 中轉管理｜面板 %s\n｜sing-box %s\n\n' "$B" "$N" "$(state_of kuobox)" "$(state_of sing-box)"
+  printf '%skuoboX%s 中轉管理｜面板 %s｜sing-box %s\n\n' "$B" "$N" "$(state_of kuobox)" "$(state_of sing-box)"
   local item num
   # 每行以編號開頭、選項之間不空行；編號後補空白讓文字對齊
   for item in "${MENU_ITEMS[@]}"; do
