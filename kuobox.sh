@@ -150,23 +150,23 @@ menu() {
   printf '  面板      %s\n  sing-box  %s\n\n' "$(state_of kuobox)" "$(state_of sing-box)"
   
   printf '  %s面板%s\n' "$D" "$N"
-  printf '   1  查看面板網址與資訊\n'
-  printf '   2  重新啟動面板\n'
-  printf '   3  啟動／停止面板\n'
-  printf '   4  面板日誌\n'
+  printf '  %2d  %s\n' 1  '查看面板網址與資訊'
+  printf '  %2d  %s\n' 2  '重新啟動面板'
+  printf '  %2d  %s\n' 3  '啟動／停止面板'
+  printf '  %2d  %s\n' 4  '面板日誌'
   
   printf '  %ssing-box%s\n' "$D" "$N"
-  printf '   5  重新啟動\n'
-  printf '   6  日誌\n'
-  printf '   7  升級核心\n'
+  printf '  %2d  %s\n' 5  '重新啟動 sing-box'
+  printf '  %2d  %s\n' 6  'sing-box 日誌'
+  printf '  %2d  %s\n' 7  '升級 sing-box 核心'
   
   printf '  %s設定%s\n' "$D" "$N"
-  printf '   8  修改面板密碼\n'
-  printf '   9  修改面板端口\n'
-  printf '  10  開啟 BBR 加速\n'
-  printf '  11  更新面板\n'
+  printf '  %2d  %s\n' 8  '修改面板密碼'
+  printf '  %2d  %s\n' 9  '修改面板端口'
+  printf '  %2d  %s\n' 10 '開啟 BBR 加速'
+  printf '  %2d  %s\n' 11 '更新面板'
   
-  printf '\n  %s12  卸載%s     0  離開\n\n' "$R" "$N"
+  printf '\n  %s%2d  卸載%s      %2d  離開\n\n' "$R" 12 "$N" 0
   read -rp '  請選擇: ' choice
   echo
   case $choice in
