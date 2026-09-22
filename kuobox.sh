@@ -103,7 +103,7 @@ update_panel() {
     update_dir=$(mktemp -d /tmp/kuobox-update.XXXXXXXX) || return
     info "從 GitHub 下載更新程式…"
     if curl -fLsS --retry 3 --connect-timeout 15 --max-time 120 --proto '=https' --tlsv1.2 \
-        https://raw.githubusercontent.com/kuobou/kuoboX/main/install.sh -o "$update_dir/install.sh"; then
+        https://raw.githubusercontent.com/kuobou/kuobox_test/main/install.sh -o "$update_dir/install.sh"; then
         bash "$update_dir/install.sh" update || err "更新未完成，請查看上方錯誤"
     else err "GitHub 下載失敗，現有服務未變更"; fi
     rm -rf -- "$update_dir"
@@ -137,7 +137,7 @@ uninstall_panel() {
     echo ""
     log "kuoboX 已完整卸載"
     echo "如需重新安裝，請執行："
-    echo -e "${green}bash <(curl -fsSL https://raw.githubusercontent.com/kuobou/kuoboX/main/install.sh)${plain}"
+    echo -e "${green}bash <(curl -fsSL https://raw.githubusercontent.com/kuobou/kuobox_test/main/install.sh)${plain}"
     echo ""
     exit 0
 }

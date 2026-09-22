@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 umask 077
 INSTALL_DIR=/opt/kuobox
-REPO=kuobou/kuoboX
+REPO=kuobou/kuobox_test
 REF=${KUOBOX_REF:-main}
 MODE=${1:-install}
 TMP_DIR=''

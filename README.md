@@ -25,7 +25,7 @@
 
 ```bash
 curl -fL --retry 3 --connect-timeout 15 --max-time 120 \
-  https://raw.githubusercontent.com/kuobou/kuoboX/main/install.sh -o install.sh
+  https://raw.githubusercontent.com/kuobou/kuobox_test/main/install.sh -o install.sh
 sudo bash install.sh
 ```
 
