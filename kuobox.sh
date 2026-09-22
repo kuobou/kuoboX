@@ -156,9 +156,9 @@ menu() {
   printf '  %2d  %s\n' 4  '面板日誌'
   
   printf '  %ssing-box%s\n' "$D" "$N"
-  printf '  %2d  %s\n' 5  '重新啟動 sing-box'
-  printf '  %2d  %s\n' 6  'sing-box 日誌'
-  printf '  %2d  %s\n' 7  '升級 sing-box 核心'
+  printf '  %2d  %s\n' 5  '重新啟動'
+  printf '  %2d  %s\n' 6  '日誌'
+  printf '  %2d  %s\n' 7  '升級核心'
   
   printf '  %s設定%s\n' "$D" "$N"
   printf '  %2d  %s\n' 8  '修改面板密碼'
